@@ -1,5 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
-import { useMemo, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Pressable,
   SafeAreaView,
@@ -18,6 +19,34 @@ const STATUS = {
 };
 
 const PRIORITIES = ['High', 'Medium', 'Low'];
+const TASKS_KEY = 'taskmanager.tasks.v1';
+const LOGS_KEY = 'taskmanager.logs.v1';
+
+function buildLog(owner, action, taskName, timeLabel) {
+  const safeOwner = owner?.trim() || 'Unknown';
+  const safeTask = taskName?.trim() || 'Untitled Task';
+
+  return {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    owner: safeOwner,
+    action,
+    taskName: safeTask,
+    time: timeLabel,
+    message: `[${safeOwner}] ${action} [${safeTask}] at [${timeLabel}]`,
+  };
+}
+
+function getNextStatus(currentStatus) {
+  if (currentStatus === STATUS.TODO) {
+    return STATUS.ONGOING;
+  }
+
+  if (currentStatus === STATUS.ONGOING) {
+    return STATUS.COMPLETED;
+  }
+
+  return STATUS.TODO;
+}
 
 function getDeadlineColor(task) {
   if (task.status === STATUS.COMPLETED) {
@@ -42,7 +71,7 @@ function getDeadlineColor(task) {
   return `rgb(${red},${green},95)`;
 }
 
-function TaskCard({ task }) {
+function TaskCard({ task, onAdvance, onDelete }) {
   return (
     <View style={[styles.card, { borderLeftColor: getDeadlineColor(task) }]}>
       <Text style={styles.cardTitle}>{task.name || 'Untitled Task'}</Text>
@@ -54,6 +83,17 @@ function TaskCard({ task }) {
       <Text style={styles.cardLine}>Members: {task.members || '-'}</Text>
       <Text style={styles.cardLine}>Description: {task.description || '-'}</Text>
       <Text style={styles.cardLine}>Status: {task.status}</Text>
+      <View style={styles.cardActions}>
+        <Pressable style={styles.cardActionBtn} onPress={() => onAdvance(task.id)}>
+          <Text style={styles.cardActionText}>Update Status</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.cardActionBtn, styles.cardDeleteBtn]}
+          onPress={() => onDelete(task.id)}
+        >
+          <Text style={styles.cardActionText}>Delete</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -71,6 +111,60 @@ export default function App() {
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState(STATUS.TODO);
   const [tasks, setTasks] = useState([]);
+  const [logs, setLogs] = useState([]);
+  const [activeTab, setActiveTab] = useState('board');
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    const loadLocalData = async () => {
+      try {
+        const [savedTasksRaw, savedLogsRaw] = await Promise.all([
+          AsyncStorage.getItem(TASKS_KEY),
+          AsyncStorage.getItem(LOGS_KEY),
+        ]);
+
+        if (savedTasksRaw) {
+          const savedTasks = JSON.parse(savedTasksRaw);
+          if (Array.isArray(savedTasks)) {
+            setTasks(savedTasks);
+          }
+        }
+
+        if (savedLogsRaw) {
+          const savedLogs = JSON.parse(savedLogsRaw);
+          if (Array.isArray(savedLogs)) {
+            setLogs(savedLogs);
+          }
+        }
+      } catch (error) {
+        console.log('Failed to load local data:', error);
+      } finally {
+        setIsReady(true);
+      }
+    };
+
+    loadLocalData();
+  }, []);
+
+  useEffect(() => {
+    if (!isReady) {
+      return;
+    }
+
+    AsyncStorage.setItem(TASKS_KEY, JSON.stringify(tasks)).catch((error) => {
+      console.log('Failed to save tasks:', error);
+    });
+  }, [tasks, isReady]);
+
+  useEffect(() => {
+    if (!isReady) {
+      return;
+    }
+
+    AsyncStorage.setItem(LOGS_KEY, JSON.stringify(logs)).catch((error) => {
+      console.log('Failed to save logs:', error);
+    });
+  }, [logs, isReady]);
 
   const taskGroups = useMemo(
     () => ({
@@ -101,7 +195,11 @@ export default function App() {
       status,
     };
 
+    const nowLabel = now.toLocaleString();
+    const newLog = buildLog(task.owner, 'added', task.name, nowLabel);
+
     setTasks((prev) => [task, ...prev]);
+    setLogs((prev) => [newLog, ...prev]);
 
     setName('');
     setOwner('');
@@ -113,6 +211,47 @@ export default function App() {
     setStatus(STATUS.TODO);
   };
 
+  const updateTaskStatus = (taskId) => {
+    const nowLabel = new Date().toLocaleString();
+
+    setTasks((prevTasks) => {
+      const existingTask = prevTasks.find((task) => task.id === taskId);
+      if (!existingTask) {
+        return prevTasks;
+      }
+
+      const updatedTask = {
+        ...existingTask,
+        status: getNextStatus(existingTask.status),
+      };
+
+      setLogs((prevLogs) => [
+        buildLog(existingTask.owner, 'updated', existingTask.name, nowLabel),
+        ...prevLogs,
+      ]);
+
+      return prevTasks.map((task) => (task.id === taskId ? updatedTask : task));
+    });
+  };
+
+  const deleteTask = (taskId) => {
+    const nowLabel = new Date().toLocaleString();
+
+    setTasks((prevTasks) => {
+      const existingTask = prevTasks.find((task) => task.id === taskId);
+      if (!existingTask) {
+        return prevTasks;
+      }
+
+      setLogs((prevLogs) => [
+        buildLog(existingTask.owner, 'deleted', existingTask.name, nowLabel),
+        ...prevLogs,
+      ]);
+
+      return prevTasks.filter((task) => task.id !== taskId);
+    });
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="light" />
@@ -122,107 +261,151 @@ export default function App() {
             <Text style={styles.heading}>Task Manager</Text>
             <Text style={styles.subheading}>Create a task and view it by status</Text>
 
-            <TextInput
-              style={styles.input}
-              placeholder="Task Name"
-              placeholderTextColor="#6b7280"
-              value={name}
-              onChangeText={setName}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Owner"
-              placeholderTextColor="#6b7280"
-              value={owner}
-              onChangeText={setOwner}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Deadline (e.g. 2026-06-01 18:00)"
-              placeholderTextColor="#6b7280"
-              value={deadline}
-              onChangeText={setDeadline}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Required Time (e.g. 6h)"
-              placeholderTextColor="#6b7280"
-              value={requiredTime}
-              onChangeText={setRequiredTime}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Members (comma-separated)"
-              placeholderTextColor="#6b7280"
-              value={members}
-              onChangeText={setMembers}
-            />
-            <TextInput
-              style={[styles.input, styles.multilineInput]}
-              placeholder="Description"
-              placeholderTextColor="#6b7280"
-              value={description}
-              onChangeText={setDescription}
-              multiline
-            />
-
-            <Text style={styles.label}>Priority</Text>
-            <View style={styles.optionRow}>
-              {PRIORITIES.map((item) => (
-                <Pressable
-                  key={item}
-                  style={[styles.optionBtn, priority === item && styles.optionBtnActive]}
-                  onPress={() => setPriority(item)}
-                >
-                  <Text
-                    style={[
-                      styles.optionBtnText,
-                      priority === item && styles.optionBtnTextActive,
-                    ]}
-                  >
-                    {item}
-                  </Text>
-                </Pressable>
-              ))}
+            <View style={styles.tabsRow}>
+              <Pressable
+                style={[styles.tabBtn, activeTab === 'board' && styles.tabBtnActive]}
+                onPress={() => setActiveTab('board')}
+              >
+                <Text style={[styles.tabText, activeTab === 'board' && styles.tabTextActive]}>
+                  Board
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[styles.tabBtn, activeTab === 'logs' && styles.tabBtnActive]}
+                onPress={() => setActiveTab('logs')}
+              >
+                <Text style={[styles.tabText, activeTab === 'logs' && styles.tabTextActive]}>
+                  Activity Log
+                </Text>
+              </Pressable>
             </View>
 
-            <Text style={styles.label}>Status</Text>
-            <View style={styles.optionRow}>
-              {Object.values(STATUS).map((item) => (
-                <Pressable
-                  key={item}
-                  style={[styles.optionBtn, status === item && styles.optionBtnActive]}
-                  onPress={() => setStatus(item)}
-                >
-                  <Text
-                    style={[
-                      styles.optionBtnText,
-                      status === item && styles.optionBtnTextActive,
-                    ]}
-                  >
-                    {item}
-                  </Text>
+            {activeTab === 'board' ? (
+              <>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Task Name"
+                  placeholderTextColor="#6b7280"
+                  value={name}
+                  onChangeText={setName}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Owner"
+                  placeholderTextColor="#6b7280"
+                  value={owner}
+                  onChangeText={setOwner}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Deadline (e.g. 2026-06-01 18:00)"
+                  placeholderTextColor="#6b7280"
+                  value={deadline}
+                  onChangeText={setDeadline}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Required Time (e.g. 6h)"
+                  placeholderTextColor="#6b7280"
+                  value={requiredTime}
+                  onChangeText={setRequiredTime}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Members (comma-separated)"
+                  placeholderTextColor="#6b7280"
+                  value={members}
+                  onChangeText={setMembers}
+                />
+                <TextInput
+                  style={[styles.input, styles.multilineInput]}
+                  placeholder="Description"
+                  placeholderTextColor="#6b7280"
+                  value={description}
+                  onChangeText={setDescription}
+                  multiline
+                />
+
+                <Text style={styles.label}>Priority</Text>
+                <View style={styles.optionRow}>
+                  {PRIORITIES.map((item) => (
+                    <Pressable
+                      key={item}
+                      style={[styles.optionBtn, priority === item && styles.optionBtnActive]}
+                      onPress={() => setPriority(item)}
+                    >
+                      <Text
+                        style={[
+                          styles.optionBtnText,
+                          priority === item && styles.optionBtnTextActive,
+                        ]}
+                      >
+                        {item}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+
+                <Text style={styles.label}>Status</Text>
+                <View style={styles.optionRow}>
+                  {Object.values(STATUS).map((item) => (
+                    <Pressable
+                      key={item}
+                      style={[styles.optionBtn, status === item && styles.optionBtnActive]}
+                      onPress={() => setStatus(item)}
+                    >
+                      <Text
+                        style={[
+                          styles.optionBtnText,
+                          status === item && styles.optionBtnTextActive,
+                        ]}
+                      >
+                        {item}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+
+                <Pressable style={styles.createBtn} onPress={addTask}>
+                  <Text style={styles.createBtnText}>Create Task</Text>
                 </Pressable>
-              ))}
-            </View>
-
-            <Pressable style={styles.createBtn} onPress={addTask}>
-              <Text style={styles.createBtnText}>Create Task</Text>
-            </Pressable>
-          </View>
-
-          <View style={[styles.board, isWide && styles.boardWide]}>
-            {Object.values(STATUS).map((group) => (
-              <View key={group} style={[styles.column, isWide && styles.columnWide]}>
-                <Text style={styles.columnTitle}>{group}</Text>
-                {taskGroups[group].length === 0 ? (
-                  <Text style={styles.emptyText}>No tasks yet</Text>
+              </>
+            ) : (
+              <View style={styles.logsCard}>
+                {logs.length === 0 ? (
+                  <Text style={styles.emptyText}>No activity yet</Text>
                 ) : (
-                  taskGroups[group].map((task) => <TaskCard key={task.id} task={task} />)
+                  logs.map((log) => (
+                    <View key={log.id} style={styles.logRow}>
+                      <Text style={styles.logText}>{log.message}</Text>
+                    </View>
+                  ))
                 )}
               </View>
-            ))}
+            )}
           </View>
+
+          {activeTab === 'board' ? (
+            <View style={[styles.board, isWide && styles.boardWide]}>
+              {Object.values(STATUS).map((group) => (
+                <View key={group} style={[styles.column, isWide && styles.columnWide]}>
+                  <Text style={styles.columnTitle}>{group}</Text>
+                  {taskGroups[group].length === 0 ? (
+                    <Text style={styles.emptyText}>No tasks yet</Text>
+                  ) : (
+                    taskGroups[group].map((task) => (
+                      <TaskCard
+                        key={task.id}
+                        task={task}
+                        onAdvance={updateTaskStatus}
+                        onDelete={deleteTask}
+                      />
+                    ))
+                  )}
+                </View>
+              ))}
+            </View>
+          ) : null}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -258,6 +441,31 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: 14,
     fontSize: 14,
+  },
+  tabsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  tabBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#6b7280',
+    borderRadius: 8,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  tabBtnActive: {
+    borderColor: '#60a5fa',
+    backgroundColor: '#1e3a8a',
+  },
+  tabText: {
+    color: '#cbd5e1',
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  tabTextActive: {
+    color: '#dbeafe',
   },
   formCard: {
     backgroundColor: '#1f2937',
@@ -328,6 +536,21 @@ const styles = StyleSheet.create({
   board: {
     width: '100%',
   },
+  logsCard: {
+    backgroundColor: '#0f172a',
+    borderRadius: 10,
+    padding: 10,
+    maxHeight: 420,
+  },
+  logRow: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#1e293b',
+    paddingVertical: 8,
+  },
+  logText: {
+    color: '#e2e8f0',
+    fontSize: 13,
+  },
   boardWide: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -360,6 +583,25 @@ const styles = StyleSheet.create({
     padding: 10,
     borderLeftWidth: 6,
     marginBottom: 10,
+  },
+  cardActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+  },
+  cardActionBtn: {
+    backgroundColor: '#1f2937',
+    borderRadius: 8,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+  },
+  cardDeleteBtn: {
+    backgroundColor: '#7f1d1d',
+  },
+  cardActionText: {
+    color: '#e5e7eb',
+    fontSize: 12,
+    fontWeight: '600',
   },
   cardTitle: {
     color: '#f8fafc',
