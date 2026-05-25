@@ -1,12 +1,84 @@
-import { useMemo, useState } from 'react';
-import { Animated, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, PanResponder, Pressable, Platform, StyleSheet, Text, View } from 'react-native';
 
 import { formatDateTimeLabel, formatMembersLabel, getDeadlineColorInfo } from '../utils/taskHelpers';
 
 export function TaskCard({ task, onAdvance, onDelete, onDragMove, onDragEnd }) {
   const deadlineColor = getDeadlineColorInfo(task);
   const [isDragging, setIsDragging] = useState(false);
+  const [webDragOffset, setWebDragOffset] = useState({ x: 0, y: 0 });
+  const [webDragSession, setWebDragSession] = useState(null);
   const dragOffset = useMemo(() => new Animated.ValueXY(), []);
+  const isWeb = Platform.OS === 'web';
+  const webDragState = useRef(null);
+
+  useEffect(() => {
+    if (!isWeb || !webDragSession) {
+      return undefined;
+    }
+
+    const updateDragPosition = (event) => {
+      const dragState = webDragState.current;
+      if (!dragState) {
+        return;
+      }
+
+      const nextOffset = {
+        x: event.pageX - dragState.startX,
+        y: event.pageY - dragState.startY,
+      };
+
+      setWebDragOffset(nextOffset);
+
+      if (onDragMove) {
+        onDragMove(task.id, event.pageX, event.pageY);
+      }
+    };
+
+    const endDrag = (event) => {
+      const dragState = webDragState.current;
+      if (!dragState) {
+        return;
+      }
+
+      if (onDragEnd) {
+        onDragEnd(task.id, event.pageX, event.pageY);
+      }
+
+      webDragState.current = null;
+      setIsDragging(false);
+      setWebDragOffset({ x: 0, y: 0 });
+      setWebDragSession(null);
+    };
+
+    const handleMove = (event) => {
+      const dragState = webDragState.current;
+      if (!dragState || dragState.pointerId !== event.pointerId) {
+        return;
+      }
+
+      updateDragPosition(event);
+    };
+
+    const handleUp = (event) => {
+      const dragState = webDragState.current;
+      if (!dragState || dragState.pointerId !== event.pointerId) {
+        return;
+      }
+
+      endDrag(event);
+    };
+
+    window.addEventListener('pointermove', handleMove, true);
+    window.addEventListener('pointerup', handleUp, true);
+    window.addEventListener('pointercancel', handleUp, true);
+
+    return () => {
+      window.removeEventListener('pointermove', handleMove, true);
+      window.removeEventListener('pointerup', handleUp, true);
+      window.removeEventListener('pointercancel', handleUp, true);
+    };
+  }, [isWeb, onDragEnd, onDragMove, task.id, webDragSession]);
 
   const panResponder = useMemo(
     () =>
@@ -59,16 +131,14 @@ export function TaskCard({ task, onAdvance, onDelete, onDragMove, onDragEnd }) {
     [dragOffset, onDragEnd, onDragMove, task.id]
   );
 
-  return (
-    <Animated.View
-      style={[
-        styles.card,
-        { borderLeftColor: deadlineColor.color },
-        isDragging && styles.cardDragging,
-        { transform: dragOffset.getTranslateTransform() },
-      ]}
-      {...panResponder.panHandlers}
-    >
+  const cardStyle = [
+    styles.card,
+    { borderLeftColor: deadlineColor.color },
+    isDragging && styles.cardDragging,
+  ];
+
+  const cardContent = (
+    <>
       <Text style={styles.cardTitle}>{task.name || 'Untitled Task'}</Text>
       <Text style={styles.cardLine}>Owner: {task.owner || '-'}</Text>
       <Text style={styles.cardLine}>Start Date: {task.startDateLabel || formatDateTimeLabel(task.startDateIso)}</Text>
@@ -93,6 +163,37 @@ export function TaskCard({ task, onAdvance, onDelete, onDragMove, onDragEnd }) {
           <Text style={styles.cardActionText}>Delete</Text>
         </Pressable>
       </View>
+    </>
+  );
+
+  if (isWeb) {
+    return (
+      <View
+        style={[...cardStyle, styles.webCard]}
+        onPointerDown={(event) => {
+          event.preventDefault();
+          webDragState.current = {
+            pointerId: event.pointerId,
+            startX: event.pageX,
+            startY: event.pageY,
+          };
+          setIsDragging(true);
+          setWebDragSession({ pointerId: event.pointerId });
+          setWebDragOffset({ x: 0, y: 0 });
+
+          event.currentTarget?.setPointerCapture?.(event.pointerId);
+        }}
+      >
+        <View style={{ transform: [{ translateX: webDragOffset.x }, { translateY: webDragOffset.y }] }}>
+          {cardContent}
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <Animated.View style={[...cardStyle, { transform: dragOffset.getTranslateTransform() }]} {...panResponder.panHandlers}>
+      {cardContent}
     </Animated.View>
   );
 }
@@ -109,6 +210,10 @@ const styles = StyleSheet.create({
     opacity: 0.92,
     zIndex: 20,
     elevation: 10,
+  },
+  webCard: {
+    cursor: 'grab',
+    userSelect: 'none',
   },
   cardActions: {
     flexDirection: 'row',

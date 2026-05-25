@@ -106,11 +106,38 @@ export function TaskBoard({ isWide, taskGroups, onAdvance, onDelete }) {
     []
   );
 
+  const allowDrop = useCallback((event) => {
+    event.preventDefault();
+  }, []);
+
+  const handleWebDrop = useCallback(
+    (dropType, status) => (event) => {
+      event.preventDefault();
+
+      const taskId = event.dataTransfer.getData('text/plain');
+      if (!taskId) {
+        return;
+      }
+
+      setActiveTarget(null);
+
+      if (dropType === 'delete') {
+        onDelete(taskId);
+        return;
+      }
+
+      onAdvance(taskId, status);
+    },
+    [onAdvance, onDelete]
+  );
+
   return (
     <View ref={boardRef} style={[styles.board, isWide && styles.boardWide]}>
       <View
         ref={deleteZoneRef}
         onLayout={refreshMeasurements}
+        onDragOver={allowDrop}
+        onDrop={handleWebDrop('delete')}
         style={[styles.deleteZone, activeTarget?.type === 'delete' && styles.deleteZoneActive]}
       >
         <Text style={styles.deleteZoneTitle}>Drop here to delete</Text>
@@ -126,6 +153,8 @@ export function TaskBoard({ isWide, taskGroups, onAdvance, onDelete }) {
               key={group}
               ref={registerColumnRef(group)}
               onLayout={refreshMeasurements}
+              onDragOver={allowDrop}
+              onDrop={handleWebDrop('status', group)}
               style={[
                 styles.column,
                 isWide && styles.columnWide,
