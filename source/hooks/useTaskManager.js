@@ -2,7 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { STATUS } from '../constants/taskManager';
 import { buildLog, getNextStatus } from '../utils/taskHelpers';
-import { loadLocalData, saveLogs, saveTasks } from '../storage/taskStorage';
+import {
+  deleteTask as deleteTaskRecord,
+  insertLog,
+  insertTask,
+  loadLocalData,
+  updateTaskStatus as updateTaskStatusRecord,
+} from '../storage/taskStorage';
 
 export function useTaskManager() {
   const [name, setName] = useState('');
@@ -34,26 +40,6 @@ export function useTaskManager() {
     load();
   }, []);
 
-  useEffect(() => {
-    if (!isReady) {
-      return;
-    }
-
-    saveTasks(tasks).catch((error) => {
-      console.log('Failed to save tasks:', error);
-    });
-  }, [tasks, isReady]);
-
-  useEffect(() => {
-    if (!isReady) {
-      return;
-    }
-
-    saveLogs(logs).catch((error) => {
-      console.log('Failed to save logs:', error);
-    });
-  }, [logs, isReady]);
-
   const taskGroups = useMemo(
     () => ({
       [STATUS.TODO]: tasks.filter((task) => task.status === STATUS.TODO),
@@ -74,7 +60,11 @@ export function useTaskManager() {
     setStatus(STATUS.TODO);
   };
 
-  const addTask = () => {
+  const addTask = async () => {
+    if (!isReady) {
+      return;
+    }
+
     if (!name.trim() || !owner.trim() || !deadline.trim()) {
       return;
     }
@@ -94,18 +84,30 @@ export function useTaskManager() {
       status,
     };
 
-    setTasks((prev) => [task, ...prev]);
-    setLogs((prev) => [buildLog(task.owner, 'added', task.name, now.toLocaleString()), ...prev]);
-    resetForm();
+    const newLog = buildLog(task.owner, 'added', task.name, now.toLocaleString());
+
+    try {
+      await insertTask(task);
+      await insertLog(newLog);
+      setTasks((prev) => [task, ...prev]);
+      setLogs((prev) => [newLog, ...prev]);
+      resetForm();
+    } catch (error) {
+      console.log('Failed to add task:', error);
+    }
   };
 
-  const updateTaskStatus = (taskId) => {
+  const updateTaskStatus = async (taskId) => {
+    if (!isReady) {
+      return;
+    }
+
     const nowLabel = new Date().toLocaleString();
 
-    setTasks((prevTasks) => {
-      const existingTask = prevTasks.find((task) => task.id === taskId);
+    try {
+      const existingTask = tasks.find((task) => task.id === taskId);
       if (!existingTask) {
-        return prevTasks;
+        return;
       }
 
       const updatedTask = {
@@ -113,31 +115,43 @@ export function useTaskManager() {
         status: getNextStatus(existingTask.status),
       };
 
-      setLogs((prevLogs) => [
-        buildLog(existingTask.owner, 'updated', existingTask.name, nowLabel),
-        ...prevLogs,
-      ]);
+      const newLog = buildLog(existingTask.owner, 'updated', existingTask.name, nowLabel);
 
-      return prevTasks.map((task) => (task.id === taskId ? updatedTask : task));
-    });
+      await updateTaskStatusRecord(taskId, updatedTask.status);
+      await insertLog(newLog);
+
+      setTasks((prevTasks) =>
+        prevTasks.map((task) => (task.id === taskId ? updatedTask : task))
+      );
+      setLogs((prevLogs) => [newLog, ...prevLogs]);
+    } catch (error) {
+      console.log('Failed to update task:', error);
+    }
   };
 
-  const deleteTask = (taskId) => {
+  const deleteTask = async (taskId) => {
+    if (!isReady) {
+      return;
+    }
+
     const nowLabel = new Date().toLocaleString();
 
-    setTasks((prevTasks) => {
-      const existingTask = prevTasks.find((task) => task.id === taskId);
+    try {
+      const existingTask = tasks.find((task) => task.id === taskId);
       if (!existingTask) {
-        return prevTasks;
+        return;
       }
 
-      setLogs((prevLogs) => [
-        buildLog(existingTask.owner, 'deleted', existingTask.name, nowLabel),
-        ...prevLogs,
-      ]);
+      const newLog = buildLog(existingTask.owner, 'deleted', existingTask.name, nowLabel);
 
-      return prevTasks.filter((task) => task.id !== taskId);
-    });
+      await deleteTaskRecord(taskId);
+      await insertLog(newLog);
+
+      setTasks((prevTasks) => prevTasks.filter((task) => task.id !== taskId));
+      setLogs((prevLogs) => [newLog, ...prevLogs]);
+    } catch (error) {
+      console.log('Failed to delete task:', error);
+    }
   };
 
   return {
