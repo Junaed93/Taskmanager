@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
-import { PanGestureHandler } from 'react-native-gesture-handler';
+import { PanGestureHandler, State } from 'react-native-gesture-handler';
 
 import { formatDateTimeLabel, formatMembersLabel, getDeadlineColorInfo } from '../utils/taskHelpers';
 
@@ -31,13 +31,13 @@ export function TaskCard({ task, onAdvance, onDelete, onDragMove, onDragEnd, onD
     const pageY = ne.absoluteY ?? ne.pageY ?? 0;
 
     // ACTIVE
-    if (state === 2) {
+    if (state === State.ACTIVE) {
       onDragStateChange?.(true);
       setIsDragging(true);
     }
 
-    // END or CANCEL
-    if (state === 5 || state === 4) {
+    // END / CANCEL / FAIL
+    if (state === State.END || state === State.CANCELLED || state === State.FAILED) {
       if (onDragEnd) {
         onDragEnd(task.id, pageX, pageY);
       }

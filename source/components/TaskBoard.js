@@ -75,10 +75,7 @@ export function TaskBoard({ isWide, taskGroups, onAdvance, onDelete, onDragState
     (pageX, pageY) => {
       const point = { x: pageX, y: pageY };
 
-      if (pointInBounds(pageX, pageY, deleteBounds)) {
-        return { type: 'delete' };
-      }
-
+      // Prefer column hits first (avoid accidental deletes when zones overlap)
       if (pointInBounds(pageX, pageY, columnBounds[STATUS.ONGOING])) {
         return { type: 'status', status: STATUS.ONGOING };
       }
@@ -89,6 +86,10 @@ export function TaskBoard({ isWide, taskGroups, onAdvance, onDelete, onDragState
 
       if (pointInBounds(pageX, pageY, columnBounds[STATUS.TODO])) {
         return { type: 'status', status: STATUS.TODO };
+      }
+
+      if (pointInBounds(pageX, pageY, deleteBounds)) {
+        return { type: 'delete' };
       }
 
       if (Platform.OS !== 'web') {
@@ -152,6 +153,7 @@ export function TaskBoard({ isWide, taskGroups, onAdvance, onDelete, onDragState
   const handleDragEnd = useCallback(
     (taskId, pageX, pageY) => {
       const target = activeTargetRef.current || lastValidTargetRef.current || resolveDropTarget(pageX, pageY);
+      
       activeTargetRef.current = null;
       lastValidTargetRef.current = null;
       setActiveTarget(null);
