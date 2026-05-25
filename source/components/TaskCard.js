@@ -1,164 +1,56 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, PanResponder, Pressable, Platform, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { PanGestureHandler } from 'react-native-gesture-handler';
 
 import { formatDateTimeLabel, formatMembersLabel, getDeadlineColorInfo } from '../utils/taskHelpers';
 
 export function TaskCard({ task, onAdvance, onDelete, onDragMove, onDragEnd, onDragStateChange }) {
   const deadlineColor = getDeadlineColorInfo(task);
   const [isDragging, setIsDragging] = useState(false);
-  const [webDragOffset, setWebDragOffset] = useState({ x: 0, y: 0 });
-  const [webDragSession, setWebDragSession] = useState(null);
-  const dragOffset = useMemo(() => new Animated.ValueXY(), []);
-  const isWeb = Platform.OS === 'web';
-  const webDragState = useRef(null);
+  const translate = useMemo(() => new Animated.ValueXY(), []);
+  const gestureRef = useRef(null);
 
-  const getDragPoint = (event, gestureState) => {
-    const nativePoint = event?.nativeEvent || {};
+  const onGestureEvent = useCallback((event) => {
+    const ne = event.nativeEvent || {};
+    const pageX = ne.absoluteX ?? ne.pageX ?? 0;
+    const pageY = ne.absoluteY ?? ne.pageY ?? 0;
+    const tx = ne.translationX ?? 0;
+    const ty = ne.translationY ?? 0;
 
-    return {
-      x:
-        nativePoint.pageX ??
-        nativePoint.locationX ??
-        gestureState?.moveX ??
-        gestureState?.x0 ??
-        0,
-      y:
-        nativePoint.pageY ??
-        nativePoint.locationY ??
-        gestureState?.moveY ??
-        gestureState?.y0 ??
-        0,
-    };
-  };
+    translate.setValue({ x: tx, y: ty });
 
-  useEffect(() => {
-    if (!isWeb || !webDragSession) {
-      return undefined;
+    if (onDragMove) {
+      onDragMove(task.id, pageX, pageY);
+    }
+  }, [onDragMove, task.id, translate]);
+
+  const onHandlerStateChange = useCallback((event) => {
+    const ne = event.nativeEvent || {};
+    const state = ne.state;
+    const pageX = ne.absoluteX ?? ne.pageX ?? 0;
+    const pageY = ne.absoluteY ?? ne.pageY ?? 0;
+
+    // ACTIVE
+    if (state === 2) {
+      onDragStateChange?.(true);
+      setIsDragging(true);
     }
 
-    const updateDragPosition = (event) => {
-      const dragState = webDragState.current;
-      if (!dragState) {
-        return;
-      }
-
-      const nextOffset = {
-        x: event.pageX - dragState.startX,
-        y: event.pageY - dragState.startY,
-      };
-
-      setWebDragOffset(nextOffset);
-
-      if (onDragMove) {
-        onDragMove(task.id, event.pageX, event.pageY);
-      }
-    };
-
-    const endDrag = (event) => {
-      const dragState = webDragState.current;
-      if (!dragState) {
-        return;
-      }
-
+    // END or CANCEL
+    if (state === 5 || state === 4) {
       if (onDragEnd) {
-        onDragEnd(task.id, event.pageX, event.pageY);
+        onDragEnd(task.id, pageX, pageY);
       }
 
-      webDragState.current = null;
-      setIsDragging(false);
-      setWebDragOffset({ x: 0, y: 0 });
-      setWebDragSession(null);
       onDragStateChange?.(false);
-    };
+      setIsDragging(false);
 
-    const handleMove = (event) => {
-      const dragState = webDragState.current;
-      if (!dragState || dragState.pointerId !== event.pointerId) {
-        return;
-      }
-
-      updateDragPosition(event);
-    };
-
-    const handleUp = (event) => {
-      const dragState = webDragState.current;
-      if (!dragState || dragState.pointerId !== event.pointerId) {
-        return;
-      }
-
-      endDrag(event);
-    };
-
-    window.addEventListener('pointermove', handleMove, true);
-    window.addEventListener('pointerup', handleUp, true);
-    window.addEventListener('pointercancel', handleUp, true);
-
-    return () => {
-      window.removeEventListener('pointermove', handleMove, true);
-      window.removeEventListener('pointerup', handleUp, true);
-      window.removeEventListener('pointercancel', handleUp, true);
-    };
-  }, [isWeb, onDragEnd, onDragMove, onDragStateChange, task.id, webDragSession]);
-
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => false,
-        onStartShouldSetPanResponderCapture: () => false,
-        onMoveShouldSetPanResponder: (_, gestureState) =>
-          Math.abs(gestureState.dx) > 4 || Math.abs(gestureState.dy) > 4,
-        onMoveShouldSetPanResponderCapture: (_, gestureState) =>
-          Math.abs(gestureState.dx) > 4 || Math.abs(gestureState.dy) > 4,
-        onPanResponderGrant: () => {
-          onDragStateChange?.(true);
-          setIsDragging(true);
-          dragOffset.setOffset({ x: 0, y: 0 });
-          dragOffset.setValue({ x: 0, y: 0 });
-        },
-        onPanResponderTerminationRequest: () => false,
-        onShouldBlockNativeResponder: () => true,
-        onPanResponderMove: (event, gestureState) => {
-          dragOffset.setValue({ x: gestureState.dx, y: gestureState.dy });
-
-          const dragPoint = getDragPoint(event, gestureState);
-
-          if (onDragMove) {
-            onDragMove(task.id, dragPoint.x, dragPoint.y);
-          }
-        },
-        onPanResponderRelease: (event, gestureState) => {
-          const dragPoint = getDragPoint(event, gestureState);
-
-          if (onDragEnd) {
-            onDragEnd(task.id, dragPoint.x, dragPoint.y);
-          }
-
-          onDragStateChange?.(false);
-          setIsDragging(false);
-          dragOffset.flattenOffset();
-          Animated.spring(dragOffset, {
-            toValue: { x: 0, y: 0 },
-            useNativeDriver: false,
-          }).start();
-        },
-        onPanResponderTerminate: (event, gestureState) => {
-          const dragPoint = getDragPoint(event, gestureState);
-
-          if (onDragEnd) {
-            onDragEnd(task.id, dragPoint.x, dragPoint.y);
-          }
-
-          onDragStateChange?.(false);
-          setIsDragging(false);
-          dragOffset.flattenOffset();
-          Animated.spring(dragOffset, {
-            toValue: { x: 0, y: 0 },
-            useNativeDriver: false,
-          }).start();
-        },
-      }),
-    [dragOffset, onDragEnd, onDragMove, task.id]
-  );
+      Animated.spring(translate, {
+        toValue: { x: 0, y: 0 },
+        useNativeDriver: false,
+      }).start();
+    }
+  }, [onDragEnd, onDragStateChange, task.id, translate]);
 
   const cardStyle = [
     styles.card,
@@ -195,36 +87,12 @@ export function TaskCard({ task, onAdvance, onDelete, onDragMove, onDragEnd, onD
     </>
   );
 
-  if (isWeb) {
-    return (
-      <View
-        style={[...cardStyle, styles.webCard]}
-        onPointerDown={(event) => {
-          event.preventDefault();
-          webDragState.current = {
-            pointerId: event.pointerId,
-            startX: event.pageX,
-            startY: event.pageY,
-          };
-          onDragStateChange?.(true);
-          setIsDragging(true);
-          setWebDragSession({ pointerId: event.pointerId });
-          setWebDragOffset({ x: 0, y: 0 });
-
-          event.currentTarget?.setPointerCapture?.(event.pointerId);
-        }}
-      >
-        <View style={{ transform: [{ translateX: webDragOffset.x }, { translateY: webDragOffset.y }] }}>
-          {cardContent}
-        </View>
-      </View>
-    );
-  }
-
   return (
-    <Animated.View style={[...cardStyle, { transform: dragOffset.getTranslateTransform() }]} {...panResponder.panHandlers}>
-      {cardContent}
-    </Animated.View>
+    <PanGestureHandler ref={gestureRef} onGestureEvent={onGestureEvent} onHandlerStateChange={onHandlerStateChange}>
+      <Animated.View style={[...cardStyle, { transform: translate.getTranslateTransform() }]}>
+        {cardContent}
+      </Animated.View>
+    </PanGestureHandler>
   );
 }
 
