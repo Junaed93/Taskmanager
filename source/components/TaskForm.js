@@ -120,6 +120,10 @@ export function TaskForm({
 
   return (
     <View>
+      <View style={styles.formHeaderRow}>
+        <Text style={styles.formHeaderTitle}>Create Task</Text>
+        <Text style={styles.helperText}>Fill the form, then create the task.</Text>
+      </View>
       <TextInput
         style={styles.input}
         placeholder="Task Name"
@@ -259,6 +263,7 @@ export function TaskForm({
       <Pressable style={styles.createBtn} onPress={addTask}>
         <Text style={styles.createBtnText}>Create Task</Text>
       </Pressable>
+
     </View>
   );
 }
@@ -315,6 +320,18 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     fontSize: 12,
     marginBottom: 10,
+  },
+  formHeaderRow: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 2,
+    marginBottom: 12,
+  },
+  formHeaderTitle: {
+    color: '#f9fafb',
+    fontSize: 18,
+    fontWeight: '800',
+    marginBottom: 4,
   },
   deadlineButtonRow: {
     flexDirection: 'row',
@@ -424,11 +441,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   createBtn: {
-    marginTop: 2,
     backgroundColor: '#0ea5e9',
     borderRadius: 10,
     paddingVertical: 11,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+    minWidth: 108,
   },
   createBtnText: {
     color: '#082f49',

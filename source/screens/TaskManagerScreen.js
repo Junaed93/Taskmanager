@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Pressable, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { TAB_KEYS } from '../constants/taskManager';
 import { useTaskManager } from '../hooks/useTaskManager';
@@ -14,6 +14,7 @@ export function TaskManagerScreen() {
   const isWide = width >= 900;
   const [isDraggingTask, setIsDraggingTask] = useState(false);
   const [currentTime, setCurrentTime] = useState(Date.now());
+  const [isFormVisible, setIsFormVisible] = useState(true);
 
   useEffect(() => {
     const timerId = setInterval(() => {
@@ -58,6 +59,15 @@ export function TaskManagerScreen() {
   const isBoardTab = activeTab === TAB_KEYS.BOARD;
   const isListTab = activeTab === TAB_KEYS.LIST;
   const isLogsTab = activeTab === TAB_KEYS.LOGS;
+  const hasTasks = tasks.length > 0;
+
+  const handleCreateTask = async () => {
+    const created = await addTask();
+
+    if (created) {
+      setIsFormVisible(false);
+    }
+  };
 
   const subheading = isBoardTab
     ? 'Create tasks, comment on cards, and drag them across the board.'
@@ -76,10 +86,10 @@ export function TaskManagerScreen() {
           <TabSwitcher activeTab={activeTab} onChangeTab={setActiveTab} />
 
           {isBoardTab ? (
-            <View style={[styles.boardLayout, isWide && styles.boardLayoutWide]}>
+            isFormVisible ? (
               <View style={[styles.formCard, isWide && styles.formCardWide]}>
                 <TaskForm
-                  addTask={addTask}
+                  addTask={handleCreateTask}
                   addMember={addMember}
                   deadline={deadline}
                   description={description}
@@ -101,17 +111,30 @@ export function TaskManagerScreen() {
                   status={status}
                 />
               </View>
+            ) : (
+              <View style={styles.boardShell}>
+                <View style={styles.boardHeaderRow}>
+                  <View style={styles.boardHeaderSpacer} />
+                  <Pressable style={styles.boardAddBtn} onPress={() => setIsFormVisible(true)}>
+                    <Text style={styles.boardAddBtnText}>Add Task</Text>
+                  </Pressable>
+                </View>
 
-              <TaskBoard
-                isWide={isWide}
-                currentTime={currentTime}
-                taskGroups={taskGroups}
-                onAdvance={updateTaskStatus}
-                onDelete={deleteTask}
-                onAddComment={addTaskComment}
-                onDragStateChange={setIsDraggingTask}
-              />
-            </View>
+                {hasTasks ? (
+                  <View style={[styles.boardLayout, isWide && styles.boardLayoutWide]}>
+                    <TaskBoard
+                      isWide={isWide}
+                      currentTime={currentTime}
+                      taskGroups={taskGroups}
+                      onAdvance={updateTaskStatus}
+                      onDelete={deleteTask}
+                      onAddComment={addTaskComment}
+                      onDragStateChange={setIsDraggingTask}
+                    />
+                  </View>
+                ) : null}
+              </View>
+            )
           ) : isListTab ? (
             <TaskList
               tasks={tasks}
@@ -152,6 +175,30 @@ const styles = StyleSheet.create({
   boardLayoutWide: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+  },
+  boardShell: {
+    gap: 12,
+  },
+  boardHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  boardHeaderSpacer: {
+    flex: 1,
+  },
+  boardAddBtn: {
+    backgroundColor: '#0ea5e9',
+    borderRadius: 10,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  boardAddBtnText: {
+    color: '#082f49',
+    fontWeight: '800',
+    fontSize: 14,
   },
   heading: {
     color: '#f9fafb',

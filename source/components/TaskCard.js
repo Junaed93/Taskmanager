@@ -169,6 +169,8 @@ const styles = StyleSheet.create({
     padding: 10,
     borderLeftWidth: 6,
     marginBottom: 10,
+    position: 'relative',
+    zIndex: 0,
   },
   cardDragging: {
     opacity: 0.92,
@@ -180,7 +182,7 @@ const styles = StyleSheet.create({
     userSelect: 'none',
   },
   cardActions: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     gap: 8,
     marginTop: 10,
   },

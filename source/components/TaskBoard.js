@@ -214,17 +214,6 @@ export function TaskBoard({
 
   return (
     <View ref={boardRef} style={[styles.board, isWide && styles.boardWide]}>
-      <View
-        ref={deleteZoneRef}
-        onLayout={refreshMeasurements}
-        onDragOver={allowDrop}
-        onDrop={handleWebDrop('delete')}
-        style={[styles.deleteZone, activeTarget?.type === 'delete' && styles.deleteZoneActive]}
-      >
-        <Text style={styles.deleteZoneTitle}>Drop here to delete</Text>
-        <Text style={styles.deleteZoneText}>Drag a task card onto this area to remove it</Text>
-      </View>
-
       <View style={[styles.columnsWrap, isWide && styles.columnsWrapWide]}>
         {statusList.map((group) => {
           const isActive = activeTarget?.type === 'status' && activeTarget.status === group;
@@ -264,6 +253,17 @@ export function TaskBoard({
           );
         })}
       </View>
+
+      <View
+        ref={deleteZoneRef}
+        onLayout={refreshMeasurements}
+        onDragOver={allowDrop}
+        onDrop={handleWebDrop('delete')}
+        style={[styles.deleteZone, activeTarget?.type === 'delete' && styles.deleteZoneActive]}
+      >
+        <Text style={styles.deleteZoneTitle}>Drop here to delete</Text>
+        <Text style={styles.deleteZoneText}>Drag a task card onto this area to remove it</Text>
+      </View>
     </View>
   );
 }
@@ -277,6 +277,8 @@ const styles = StyleSheet.create({
   },
   columnsWrap: {
     width: '100%',
+    position: 'relative',
+    zIndex: 2,
   },
   columnsWrapWide: {
     flexDirection: 'row',
@@ -289,6 +291,9 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 12,
     minHeight: 180,
+    position: 'relative',
+    zIndex: 2,
+    overflow: 'hidden',
   },
   columnWide: {
     flex: 1,
@@ -315,7 +320,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#7f1d1d',
     padding: 12,
-    marginBottom: 12,
+    marginTop: 12,
   },
   deleteZoneActive: {
     backgroundColor: '#5b1c1c',

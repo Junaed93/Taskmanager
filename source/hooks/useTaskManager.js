@@ -144,11 +144,11 @@ export function useTaskManager() {
 
   const addTask = async () => {
     if (!isReady) {
-      return;
+      return false;
     }
 
     if (!name.trim() || !owner.trim() || !deadline.trim()) {
-      return;
+      return false;
     }
 
     const now = new Date();
@@ -181,8 +181,10 @@ export function useTaskManager() {
       setTasks((prev) => [task, ...prev]);
       setLogs((prev) => [newLog, ...prev]);
       resetForm();
+      return true;
     } catch (error) {
       console.log('Failed to add task:', error);
+      return false;
     }
   };
 
