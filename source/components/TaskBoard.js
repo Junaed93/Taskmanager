@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 
 import { STATUS } from '../constants/taskManager';
 import { TaskCard } from './TaskCard';
@@ -12,10 +12,36 @@ function pointInBounds(x, y, bounds) {
   return x >= bounds.x && x <= bounds.x + bounds.width && y >= bounds.y && y <= bounds.y + bounds.height;
 }
 
+function getBoundsCenter(bounds) {
+  if (!bounds) {
+    return null;
+  }
+
+  return {
+    x: bounds.x + bounds.width / 2,
+    y: bounds.y + bounds.height / 2,
+  };
+}
+
+function getSquaredDistance(point, bounds) {
+  const center = getBoundsCenter(bounds);
+
+  if (!center) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  const dx = point.x - center.x;
+  const dy = point.y - center.y;
+
+  return dx * dx + dy * dy;
+}
+
 export function TaskBoard({ isWide, taskGroups, onAdvance, onDelete, onDragStateChange }) {
   const boardRef = useRef(null);
   const deleteZoneRef = useRef(null);
   const columnRefs = useRef({});
+  const activeTargetRef = useRef(null);
+  const lastValidTargetRef = useRef(null);
   const [columnBounds, setColumnBounds] = useState({});
   const [deleteBounds, setDeleteBounds] = useState(null);
   const [activeTarget, setActiveTarget] = useState(null);
@@ -47,6 +73,8 @@ export function TaskBoard({ isWide, taskGroups, onAdvance, onDelete, onDragState
 
   const resolveDropTarget = useCallback(
     (pageX, pageY) => {
+      const point = { x: pageX, y: pageY };
+
       if (pointInBounds(pageX, pageY, deleteBounds)) {
         return { type: 'delete' };
       }
@@ -63,6 +91,42 @@ export function TaskBoard({ isWide, taskGroups, onAdvance, onDelete, onDragState
         return { type: 'status', status: STATUS.TODO };
       }
 
+      if (Platform.OS !== 'web') {
+        const candidates = [
+          { type: 'delete' },
+          { type: 'status', status: STATUS.ONGOING },
+          { type: 'status', status: STATUS.COMPLETED },
+          { type: 'status', status: STATUS.TODO },
+        ];
+
+        const candidateBounds = {
+          delete: deleteBounds,
+          [STATUS.ONGOING]: columnBounds[STATUS.ONGOING],
+          [STATUS.COMPLETED]: columnBounds[STATUS.COMPLETED],
+          [STATUS.TODO]: columnBounds[STATUS.TODO],
+        };
+
+        const scored = candidates
+          .map((candidate) => {
+            const bounds = candidate.type === 'delete' ? candidateBounds.delete : candidateBounds[candidate.status];
+
+            return {
+              candidate,
+              distance: getSquaredDistance(point, bounds),
+            };
+          })
+          .sort((left, right) => left.distance - right.distance);
+
+        const closest = scored[0];
+        if (closest && Number.isFinite(closest.distance)) {
+          const maxSnapDistance = 180 * 180;
+
+          if (closest.distance <= maxSnapDistance) {
+            return closest.candidate;
+          }
+        }
+      }
+
       return null;
     },
     [columnBounds, deleteBounds]
@@ -75,14 +139,21 @@ export function TaskBoard({ isWide, taskGroups, onAdvance, onDelete, onDragState
   const handleDragMove = useCallback(
     (taskId, pageX, pageY) => {
       const target = resolveDropTarget(pageX, pageY);
-      setActiveTarget(target ? { taskId, ...target } : null);
+      const nextTarget = target ? { taskId, ...target } : null;
+      activeTargetRef.current = nextTarget;
+      if (nextTarget) {
+        lastValidTargetRef.current = nextTarget;
+      }
+      setActiveTarget(nextTarget);
     },
     [resolveDropTarget]
   );
 
   const handleDragEnd = useCallback(
     (taskId, pageX, pageY) => {
-      const target = resolveDropTarget(pageX, pageY);
+      const target = activeTargetRef.current || lastValidTargetRef.current || resolveDropTarget(pageX, pageY);
+      activeTargetRef.current = null;
+      lastValidTargetRef.current = null;
       setActiveTarget(null);
 
       if (!target) {

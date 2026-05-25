@@ -12,6 +12,25 @@ export function TaskCard({ task, onAdvance, onDelete, onDragMove, onDragEnd, onD
   const isWeb = Platform.OS === 'web';
   const webDragState = useRef(null);
 
+  const getDragPoint = (event, gestureState) => {
+    const nativePoint = event?.nativeEvent || {};
+
+    return {
+      x:
+        nativePoint.pageX ??
+        nativePoint.locationX ??
+        gestureState?.moveX ??
+        gestureState?.x0 ??
+        0,
+      y:
+        nativePoint.pageY ??
+        nativePoint.locationY ??
+        gestureState?.moveY ??
+        gestureState?.y0 ??
+        0,
+    };
+  };
+
   useEffect(() => {
     if (!isWeb || !webDragSession) {
       return undefined;
@@ -98,16 +117,20 @@ export function TaskCard({ task, onAdvance, onDelete, onDragMove, onDragEnd, onD
         },
         onPanResponderTerminationRequest: () => false,
         onShouldBlockNativeResponder: () => true,
-        onPanResponderMove: (_, gestureState) => {
+        onPanResponderMove: (event, gestureState) => {
           dragOffset.setValue({ x: gestureState.dx, y: gestureState.dy });
 
+          const dragPoint = getDragPoint(event, gestureState);
+
           if (onDragMove) {
-            onDragMove(task.id, gestureState.moveX, gestureState.moveY);
+            onDragMove(task.id, dragPoint.x, dragPoint.y);
           }
         },
-        onPanResponderRelease: (_, gestureState) => {
+        onPanResponderRelease: (event, gestureState) => {
+          const dragPoint = getDragPoint(event, gestureState);
+
           if (onDragEnd) {
-            onDragEnd(task.id, gestureState.moveX, gestureState.moveY);
+            onDragEnd(task.id, dragPoint.x, dragPoint.y);
           }
 
           onDragStateChange?.(false);
@@ -118,9 +141,11 @@ export function TaskCard({ task, onAdvance, onDelete, onDragMove, onDragEnd, onD
             useNativeDriver: false,
           }).start();
         },
-        onPanResponderTerminate: (_, gestureState) => {
+        onPanResponderTerminate: (event, gestureState) => {
+          const dragPoint = getDragPoint(event, gestureState);
+
           if (onDragEnd) {
-            onDragEnd(task.id, gestureState.moveX, gestureState.moveY);
+            onDragEnd(task.id, dragPoint.x, dragPoint.y);
           }
 
           onDragStateChange?.(false);
