@@ -8,6 +8,7 @@ export const PRIORITIES = ['High', 'Medium', 'Low'];
 
 export const TAB_KEYS = {
   BOARD: 'board',
+  LIST: 'list',
   LOGS: 'logs',
 };
 

@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SQLite from 'expo-sqlite';
 
 import { STORAGE_KEYS } from '../constants/taskManager';
-import { normalizeMembers, serializeMembers } from '../utils/taskHelpers';
+import { normalizeComments, normalizeMembers, serializeComments, serializeMembers } from '../utils/taskHelpers';
 
 const DATABASE_NAME = 'taskmanager.db';
 
@@ -21,6 +21,7 @@ function mapTaskRow(row) {
     members: normalizeMembers(row.members),
     description: row.description,
     status: row.status,
+    comments: normalizeComments(row.comments),
   };
 }
 
@@ -51,7 +52,8 @@ async function getDatabase() {
           requiredTime TEXT,
           members TEXT,
           description TEXT,
-          status TEXT NOT NULL
+          status TEXT NOT NULL,
+          comments TEXT
         );
         CREATE TABLE IF NOT EXISTS logs (
           id TEXT PRIMARY KEY NOT NULL,
@@ -62,6 +64,13 @@ async function getDatabase() {
           message TEXT NOT NULL
         );
       `);
+
+      const taskColumns = await db.getAllAsync('PRAGMA table_info(tasks)');
+      const hasCommentsColumn = taskColumns.some((column) => column.name === 'comments');
+
+      if (!hasCommentsColumn) {
+        await db.execAsync('ALTER TABLE tasks ADD COLUMN comments TEXT');
+      }
 
       return db;
     });
@@ -94,8 +103,8 @@ async function migrateLegacyStorageIfNeeded(db) {
       await db.runAsync(
         `
           INSERT OR REPLACE INTO tasks (
-            id, name, owner, startDateIso, startDateLabel, deadline, priority, requiredTime, members, description, status
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            id, name, owner, startDateIso, startDateLabel, deadline, priority, requiredTime, members, description, status, comments
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         task.id,
         task.name,
@@ -107,7 +116,8 @@ async function migrateLegacyStorageIfNeeded(db) {
         task.requiredTime,
         serializeMembers(task.members),
         task.description,
-        task.status
+        task.status,
+        serializeComments(task.comments)
       );
     }
   }
@@ -156,8 +166,8 @@ export async function insertTask(task) {
   await db.runAsync(
     `
       INSERT OR REPLACE INTO tasks (
-        id, name, owner, startDateIso, startDateLabel, deadline, priority, requiredTime, members, description, status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        id, name, owner, startDateIso, startDateLabel, deadline, priority, requiredTime, members, description, status, comments
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     task.id,
     task.name,
@@ -169,8 +179,14 @@ export async function insertTask(task) {
     task.requiredTime,
     serializeMembers(task.members),
     task.description,
-    task.status
+    task.status,
+    serializeComments(task.comments)
   );
+}
+
+export async function updateTaskComments(taskId, comments) {
+  const db = await getDatabase();
+  await db.runAsync('UPDATE tasks SET comments = ? WHERE id = ?', serializeComments(comments), taskId);
 }
 
 export async function updateTaskStatus(taskId, status) {

@@ -14,6 +14,14 @@ export function TabSwitcher({ activeTab, onChangeTab }) {
         </Text>
       </Pressable>
       <Pressable
+        style={[styles.tabBtn, activeTab === TAB_KEYS.LIST && styles.tabBtnActive]}
+        onPress={() => onChangeTab(TAB_KEYS.LIST)}
+      >
+        <Text style={[styles.tabText, activeTab === TAB_KEYS.LIST && styles.tabTextActive]}>
+          List
+        </Text>
+      </Pressable>
+      <Pressable
         style={[styles.tabBtn, activeTab === TAB_KEYS.LOGS && styles.tabBtnActive]}
         onPress={() => onChangeTab(TAB_KEYS.LOGS)}
       >

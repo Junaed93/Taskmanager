@@ -4,13 +4,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
-import { STATUS } from '../constants/taskManager';
+import { STATUS, TAB_KEYS } from '../constants/taskManager';
 import { buildLog, getNextStatus } from '../utils/taskHelpers';
 import {
   deleteTask as deleteTaskRecord,
   insertLog,
   insertTask,
   loadLocalData,
+  updateTaskComments as updateTaskCommentsRecord,
   updateTaskStatus as updateTaskStatusRecord,
 } from '../storage/taskStorage';
 
@@ -26,7 +27,7 @@ export function useTaskManager() {
   const [status, setStatus] = useState(STATUS.TODO);
   const [tasks, setTasks] = useState([]);
   const [logs, setLogs] = useState([]);
-  const [activeTab, setActiveTab] = useState('board');
+  const [activeTab, setActiveTab] = useState(TAB_KEYS.BOARD);
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
@@ -163,6 +164,7 @@ export function useTaskManager() {
       members,
       description: description.trim(),
       status,
+      comments: [],
     };
 
     const newLog = buildLog(task.owner, 'added', task.name, now.toLocaleString());
@@ -181,6 +183,44 @@ export function useTaskManager() {
       resetForm();
     } catch (error) {
       console.log('Failed to add task:', error);
+    }
+  };
+
+  const addTaskComment = async (taskId, commentText) => {
+    if (!isReady) {
+      return;
+    }
+
+    const text = commentText?.trim();
+    if (!text) {
+      return;
+    }
+
+    const existingTask = tasks.find((task) => task.id === taskId);
+    if (!existingTask) {
+      return;
+    }
+
+    const now = new Date();
+    const comment = {
+      id: `${now.getTime()}-${Math.random().toString(36).slice(2, 8)}`,
+      author: 'You',
+      text,
+      createdAtIso: now.toISOString(),
+      createdAtLabel: now.toLocaleString(),
+    };
+
+    const updatedComments = [...(existingTask.comments || []), comment];
+    const updatedTask = {
+      ...existingTask,
+      comments: updatedComments,
+    };
+
+    try {
+      await updateTaskCommentsRecord(taskId, updatedComments);
+      setTasks((prevTasks) => prevTasks.map((task) => (task.id === taskId ? updatedTask : task)));
+    } catch (error) {
+      console.log('Failed to add task comment:', error);
     }
   };
 
@@ -361,6 +401,7 @@ export function useTaskManager() {
   return {
     activeTab,
     addTask,
+    addTaskComment,
     addMember,
     deadline,
     deleteTask,

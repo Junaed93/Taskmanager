@@ -7,6 +7,7 @@ import { ActivityLogList } from '../components/ActivityLogList';
 import { TabSwitcher } from '../components/TabSwitcher';
 import { TaskBoard } from '../components/TaskBoard';
 import { TaskForm } from '../components/TaskForm';
+import { TaskList } from '../components/TaskList';
 
 export function TaskManagerScreen() {
   const { width } = useWindowDimensions();
@@ -26,6 +27,7 @@ export function TaskManagerScreen() {
   const {
     activeTab,
     addTask,
+    addTaskComment,
     addMember,
     deadline,
     deleteTask,
@@ -49,57 +51,77 @@ export function TaskManagerScreen() {
     setStatus,
     status,
     taskGroups,
+    tasks,
     updateTaskStatus,
   } = useTaskManager();
+
+  const isBoardTab = activeTab === TAB_KEYS.BOARD;
+  const isListTab = activeTab === TAB_KEYS.LIST;
+  const isLogsTab = activeTab === TAB_KEYS.LOGS;
+
+  const subheading = isBoardTab
+    ? 'Create tasks, comment on cards, and drag them across the board.'
+    : isListTab
+      ? 'See every task in deadline order, with the nearest due date first.'
+      : 'Review the add, update, and delete history for each task.';
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="light" />
       <ScrollView scrollEnabled={!isDraggingTask} contentContainerStyle={styles.screen}>
-        <View style={[styles.content, isWide && styles.contentWide]}>
-          <View style={[styles.formCard, isWide && styles.formCardWide]}>
-            <Text style={styles.heading}>Task Manager</Text>
-            <Text style={styles.subheading}>Create a task and view it by status</Text>
+        <View style={styles.content}>
+          <Text style={styles.heading}>Task Manager</Text>
+          <Text style={styles.subheading}>{subheading}</Text>
 
-            <TabSwitcher activeTab={activeTab} onChangeTab={setActiveTab} />
+          <TabSwitcher activeTab={activeTab} onChangeTab={setActiveTab} />
 
-            {activeTab === TAB_KEYS.BOARD ? (
-              <TaskForm
-                addTask={addTask}
-                addMember={addMember}
-                deadline={deadline}
-                description={description}
-                members={members}
-                memberName={memberName}
-                name={name}
-                owner={owner}
-                priority={priority}
-                requiredTime={requiredTime}
-                removeMember={removeMember}
-                setDeadline={setDeadline}
-                setDescription={setDescription}
-                setMemberName={setMemberName}
-                setName={setName}
-                setOwner={setOwner}
-                setPriority={setPriority}
-                setRequiredTime={setRequiredTime}
-                setStatus={setStatus}
-                status={status}
+          {isBoardTab ? (
+            <View style={[styles.boardLayout, isWide && styles.boardLayoutWide]}>
+              <View style={[styles.formCard, isWide && styles.formCardWide]}>
+                <TaskForm
+                  addTask={addTask}
+                  addMember={addMember}
+                  deadline={deadline}
+                  description={description}
+                  members={members}
+                  memberName={memberName}
+                  name={name}
+                  owner={owner}
+                  priority={priority}
+                  requiredTime={requiredTime}
+                  removeMember={removeMember}
+                  setDeadline={setDeadline}
+                  setDescription={setDescription}
+                  setMemberName={setMemberName}
+                  setName={setName}
+                  setOwner={setOwner}
+                  setPriority={setPriority}
+                  setRequiredTime={setRequiredTime}
+                  setStatus={setStatus}
+                  status={status}
+                />
+              </View>
+
+              <TaskBoard
+                isWide={isWide}
+                currentTime={currentTime}
+                taskGroups={taskGroups}
+                onAdvance={updateTaskStatus}
+                onDelete={deleteTask}
+                onAddComment={addTaskComment}
+                onDragStateChange={setIsDraggingTask}
               />
-            ) : (
-              <ActivityLogList logs={logs} />
-            )}
-          </View>
-
-          {activeTab === TAB_KEYS.BOARD ? (
-            <TaskBoard
-              isWide={isWide}
+            </View>
+          ) : isListTab ? (
+            <TaskList
+              tasks={tasks}
               currentTime={currentTime}
-              taskGroups={taskGroups}
               onAdvance={updateTaskStatus}
               onDelete={deleteTask}
-              onDragStateChange={setIsDraggingTask}
+              onAddComment={addTaskComment}
             />
+          ) : isLogsTab ? (
+            <ActivityLogList logs={logs} />
           ) : null}
         </View>
       </ScrollView>
@@ -122,9 +144,14 @@ const styles = StyleSheet.create({
     maxWidth: 1200,
   },
   contentWide: {
+    alignItems: 'stretch',
+  },
+  boardLayout: {
+    gap: 14,
+  },
+  boardLayoutWide: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 14,
   },
   heading: {
     color: '#f9fafb',

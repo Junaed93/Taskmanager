@@ -104,3 +104,74 @@ export function formatMembersLabel(value) {
 
   return members.length > 0 ? members.join(', ') : '-';
 }
+
+function normalizeCommentEntry(entry) {
+  if (!entry) {
+    return null;
+  }
+
+  if (typeof entry === 'string') {
+    const text = entry.trim();
+
+    if (!text) {
+      return null;
+    }
+
+    const createdAt = new Date();
+
+    return {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      author: 'You',
+      text,
+      createdAtIso: createdAt.toISOString(),
+      createdAtLabel: formatDateTimeLabel(createdAt.toISOString()),
+    };
+  }
+
+  if (typeof entry !== 'object') {
+    return null;
+  }
+
+  const text = `${entry.text ?? ''}`.trim();
+  if (!text) {
+    return null;
+  }
+
+  const createdAtIso = entry.createdAtIso || new Date().toISOString();
+
+  return {
+    id: entry.id ? String(entry.id) : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    author: `${entry.author ?? 'You'}`.trim() || 'You',
+    text,
+    createdAtIso,
+    createdAtLabel: entry.createdAtLabel || formatDateTimeLabel(createdAtIso),
+  };
+}
+
+export function normalizeComments(value) {
+  let rawValue = value;
+
+  if (typeof rawValue === 'string') {
+    const trimmed = rawValue.trim();
+
+    if (!trimmed) {
+      return [];
+    }
+
+    try {
+      rawValue = JSON.parse(trimmed);
+    } catch (error) {
+      return [];
+    }
+  }
+
+  if (!Array.isArray(rawValue)) {
+    return [];
+  }
+
+  return rawValue.map(normalizeCommentEntry).filter(Boolean);
+}
+
+export function serializeComments(value) {
+  return JSON.stringify(normalizeComments(value));
+}

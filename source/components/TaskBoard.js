@@ -36,7 +36,15 @@ function getSquaredDistance(point, bounds) {
   return dx * dx + dy * dy;
 }
 
-export function TaskBoard({ isWide, currentTime, taskGroups, onAdvance, onDelete, onDragStateChange }) {
+export function TaskBoard({
+  isWide,
+  currentTime,
+  taskGroups,
+  onAdvance,
+  onDelete,
+  onAddComment,
+  onDragStateChange,
+}) {
   const boardRef = useRef(null);
   const deleteZoneRef = useRef(null);
   const columnRefs = useRef({});
@@ -245,6 +253,7 @@ export function TaskBoard({ isWide, currentTime, taskGroups, onAdvance, onDelete
                     currentTime={currentTime}
                     onAdvance={onAdvance}
                     onDelete={onDelete}
+                    onAddComment={onAddComment}
                     onDragMove={handleDragMove}
                     onDragEnd={handleDragEnd}
                     onDragStateChange={onDragStateChange}
