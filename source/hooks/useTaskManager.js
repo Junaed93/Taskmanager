@@ -40,33 +40,64 @@ export function useTaskManager() {
       } finally {
         setIsReady(true);
       }
-
-      // request notification permissions on startup and create Android channel
-        (async () => {
-          try {
-            const { status } = await Notifications.getPermissionsAsync();
-            if (status !== 'granted') {
-              await Notifications.requestPermissionsAsync();
-            }
-
-            if (Platform.OS === 'android') {
-              try {
-                await Notifications.setNotificationChannelAsync('default', {
-                  name: 'Default',
-                  importance: Notifications.AndroidImportance.DEFAULT,
-                });
-              } catch (e) {
-                // ignore
-              }
-            }
-          } catch (e) {
-            // ignore
-          }
-        })();
     };
 
     load();
   }, []);
+
+  useEffect(() => {
+    const setupNotifications = async () => {
+      try {
+        const { status, ios } = await Notifications.getPermissionsAsync();
+        const isGranted = status === 'granted' || ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL;
+
+        if (!isGranted) {
+          await Notifications.requestPermissionsAsync({
+            ios: {
+              allowAlert: true,
+              allowBadge: true,
+              allowSound: true,
+              allowProvisional: true,
+            },
+          });
+        }
+
+        if (Platform.OS === 'android') {
+          await Notifications.setNotificationChannelAsync('default', {
+            name: 'Default',
+            importance: Notifications.AndroidImportance.DEFAULT,
+          });
+        }
+      } catch (error) {
+        console.log('Failed to initialize notifications:', error);
+      }
+    };
+
+    setupNotifications();
+  }, []);
+
+  useEffect(() => {
+    if (!isReady || tasks.length === 0) {
+      return;
+    }
+
+    const syncNotifications = async () => {
+      for (const task of tasks) {
+        if (task.status === STATUS.COMPLETED || !task.deadline) {
+          continue;
+        }
+
+        const deadlineDate = new Date(task.deadline);
+        if (Number.isNaN(deadlineDate.getTime()) || deadlineDate.getTime() <= Date.now()) {
+          continue;
+        }
+
+        await scheduleNotificationForTask(task);
+      }
+    };
+
+    syncNotifications();
+  }, [isReady, tasks]);
 
   const taskGroups = useMemo(
     () => ({
@@ -189,9 +220,17 @@ export function useTaskManager() {
     };
 
     try {
-      // schedule using seconds-based trigger (Expo requires trigger to include type/seconds/channelId)
-      const seconds = Math.max(1, Math.ceil((when.getTime() - Date.now()) / 1000));
-      const trigger = Platform.OS === 'android' ? { seconds, channelId: 'default' } : { seconds };
+      const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+      const existing = scheduled.find((request) => request?.content?.data?.taskId === task.id);
+      if (existing) {
+        return existing.identifier;
+      }
+
+      const trigger = {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: when,
+        ...(Platform.OS === 'android' ? { channelId: 'default' } : {}),
+      };
       const notifId = await Notifications.scheduleNotificationAsync({ content, trigger });
       const map = await loadNotifMap();
       map[task.id] = notifId;

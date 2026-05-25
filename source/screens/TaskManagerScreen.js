@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { TAB_KEYS } from '../constants/taskManager';
@@ -12,6 +12,15 @@ export function TaskManagerScreen() {
   const { width } = useWindowDimensions();
   const isWide = width >= 900;
   const [isDraggingTask, setIsDraggingTask] = useState(false);
+  const [, setClockTick] = useState(Date.now());
+
+  useEffect(() => {
+    const timerId = setInterval(() => {
+      setClockTick(Date.now());
+    }, 15000);
+
+    return () => clearInterval(timerId);
+  }, []);
 
   const {
     activeTab,
