@@ -46,13 +46,26 @@ export function TaskForm({
 
   const getDeadlineBase = () => deadlineDate || new Date();
 
-  const deadlineDateValue = deadlineDate
-    ? `${deadlineDate.getFullYear()}-${String(deadlineDate.getMonth() + 1).padStart(2, '0')}-${String(deadlineDate.getDate()).padStart(2, '0')}`
-    : '';
+  const toLocalDateTimeInputValue = (date) => {
+    if (!date || Number.isNaN(date.getTime())) {
+      return '';
+    }
 
-  const deadlineTimeValue = deadlineDate
-    ? `${String(deadlineDate.getHours()).padStart(2, '0')}:${String(deadlineDate.getMinutes()).padStart(2, '0')}`
-    : '';
+    const offsetMs = date.getTimezoneOffset() * 60000;
+    const localDate = new Date(date.getTime() - offsetMs);
+
+    return localDate.toISOString().slice(0, 16);
+  };
+
+  const fromDateTimeInputValue = (value) => {
+    if (!value) {
+      return null;
+    }
+
+    const parsed = new Date(value);
+
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
 
   const updateDeadlineDate = (_, selectedDate) => {
     if (Platform.OS !== 'web') {
@@ -88,36 +101,21 @@ export function TaskForm({
     setDeadline(nextDeadline.toISOString());
   };
 
-  const updateDeadlineDateWeb = (value) => {
+  const updateDeadlineWeb = (event) => {
+    const value = typeof event === 'string' ? event : event?.target?.value || '';
+
     if (!value) {
+      setDeadline('');
       return;
     }
 
-    const nextDeadline = getDeadlineBase();
-    const [year, month, day] = value.split('-').map(Number);
+    const parsed = fromDateTimeInputValue(value);
 
-    if (!year || !month || !day) {
+    if (!parsed) {
       return;
     }
 
-    nextDeadline.setFullYear(year, month - 1, day);
-    setDeadline(nextDeadline.toISOString());
-  };
-
-  const updateDeadlineTimeWeb = (value) => {
-    if (!value) {
-      return;
-    }
-
-    const nextDeadline = getDeadlineBase();
-    const [hours, minutes] = value.split(':').map(Number);
-
-    if (Number.isNaN(hours) || Number.isNaN(minutes)) {
-      return;
-    }
-
-    nextDeadline.setHours(hours, minutes, 0, 0);
-    setDeadline(nextDeadline.toISOString());
+    setDeadline(parsed.toISOString());
   };
 
   return (
@@ -136,6 +134,11 @@ export function TaskForm({
         value={owner}
         onChangeText={setOwner}
       />
+      <View style={styles.startDatePreview}>
+        <Text style={styles.startDateLabel}>Start Date</Text>
+        <Text style={styles.startDateValue}>{formatDateTimeLabel(new Date().toISOString())}</Text>
+        <Text style={styles.helperText}>This will be captured automatically when you create the task.</Text>
+      </View>
       <View style={styles.pickerCard}>
         <Text style={styles.label}>Deadline</Text>
         <Text style={styles.helperText}>
@@ -143,21 +146,11 @@ export function TaskForm({
         </Text>
         {Platform.OS === 'web' ? (
           <View style={styles.deadlineWebRow}>
-            <TextInput
-              style={[styles.input, styles.deadlineField]}
-              value={deadlineDateValue}
-              onChangeText={updateDeadlineDateWeb}
-              placeholder="Select date"
-              placeholderTextColor="#6b7280"
-              {...(Platform.OS === 'web' ? { type: 'date' } : {})}
-            />
-            <TextInput
-              style={[styles.input, styles.deadlineField]}
-              value={deadlineTimeValue}
-              onChangeText={updateDeadlineTimeWeb}
-              placeholder="Select time"
-              placeholderTextColor="#6b7280"
-              {...(Platform.OS === 'web' ? { type: 'time' } : {})}
+            <input
+              type="datetime-local"
+              value={toLocalDateTimeInputValue(deadlineDate)}
+              onChange={updateDeadlineWeb}
+              style={styles.webDateTimeInput}
             />
           </View>
         ) : (
@@ -292,6 +285,26 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 10,
   },
+  startDatePreview: {
+    backgroundColor: '#111827',
+    borderColor: '#334155',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
+  },
+  startDateLabel: {
+    color: '#e5e7eb',
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  startDateValue: {
+    color: '#dbeafe',
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
   label: {
     color: '#e5e7eb',
     marginBottom: 8,
@@ -317,6 +330,19 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 140,
     marginBottom: 0,
+  },
+  webDateTimeInput: {
+    width: '100%',
+    minWidth: 0,
+    backgroundColor: '#374151',
+    color: '#f9fafb',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: '#6b7280',
+    padding: '10px 12px',
+    fontSize: 14,
+    outline: 'none',
   },
   secondaryBtn: {
     backgroundColor: '#0f172a',
