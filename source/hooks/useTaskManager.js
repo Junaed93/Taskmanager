@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
+
 import { STATUS } from '../constants/taskManager';
 import { buildLog, getNextStatus } from '../utils/taskHelpers';
 import {
@@ -36,6 +40,29 @@ export function useTaskManager() {
       } finally {
         setIsReady(true);
       }
+
+      // request notification permissions on startup and create Android channel
+        (async () => {
+          try {
+            const { status } = await Notifications.getPermissionsAsync();
+            if (status !== 'granted') {
+              await Notifications.requestPermissionsAsync();
+            }
+
+            if (Platform.OS === 'android') {
+              try {
+                await Notifications.setNotificationChannelAsync('default', {
+                  name: 'Default',
+                  importance: Notifications.AndroidImportance.DEFAULT,
+                });
+              } catch (e) {
+                // ignore
+              }
+            }
+          } catch (e) {
+            // ignore
+          }
+        })();
     };
 
     load();
@@ -111,12 +138,82 @@ export function useTaskManager() {
 
     try {
       await insertTask(task);
+      // schedule notification for deadline
+      try {
+        await scheduleNotificationForTask(task);
+      } catch (e) {
+        console.log('Failed to schedule notification:', e);
+      }
       await insertLog(newLog);
       setTasks((prev) => [task, ...prev]);
       setLogs((prev) => [newLog, ...prev]);
       resetForm();
     } catch (error) {
       console.log('Failed to add task:', error);
+    }
+  };
+
+  // Notification helpers use AsyncStorage to persist mapping taskId -> notificationId
+  const NOTIF_KEY = 'taskmanager.notifications.v1';
+
+  const loadNotifMap = async () => {
+    try {
+      const raw = await AsyncStorage.getItem(NOTIF_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      return {};
+    }
+  };
+
+  const saveNotifMap = async (map) => {
+    try {
+      await AsyncStorage.setItem(NOTIF_KEY, JSON.stringify(map));
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  const scheduleNotificationForTask = async (task) => {
+    if (!task || !task.deadline) return null;
+
+    const when = new Date(task.deadline);
+    if (Number.isNaN(when.getTime())) return null;
+
+    // don't schedule past notifications
+    if (when.getTime() <= Date.now()) return null;
+
+    const content = {
+      title: `Task due: ${task.name}`,
+      body: `"${task.name}" is due now.`,
+      data: { taskId: task.id },
+    };
+
+    try {
+      // schedule using seconds-based trigger (Expo requires trigger to include type/seconds/channelId)
+      const seconds = Math.max(1, Math.ceil((when.getTime() - Date.now()) / 1000));
+      const trigger = Platform.OS === 'android' ? { seconds, channelId: 'default' } : { seconds };
+      const notifId = await Notifications.scheduleNotificationAsync({ content, trigger });
+      const map = await loadNotifMap();
+      map[task.id] = notifId;
+      await saveNotifMap(map);
+      return notifId;
+    } catch (e) {
+      console.log('scheduleNotificationForTask error', e);
+      return null;
+    }
+  };
+
+  const cancelNotificationForTask = async (taskId) => {
+    try {
+      const map = await loadNotifMap();
+      const notifId = map[taskId];
+      if (notifId) {
+        await Notifications.cancelScheduledNotificationAsync(notifId);
+        delete map[taskId];
+        await saveNotifMap(map);
+      }
+    } catch (e) {
+      // ignore
     }
   };
 
@@ -153,6 +250,15 @@ export function useTaskManager() {
         prevTasks.map((task) => (task.id === taskId ? updatedTask : task))
       );
       setLogs((prevLogs) => [newLog, ...prevLogs]);
+
+      // if task was completed, cancel any scheduled notification
+      if (updatedTask.status === STATUS.COMPLETED) {
+        try {
+          await cancelNotificationForTask(taskId);
+        } catch (e) {
+          // ignore
+        }
+      }
     } catch (error) {
       console.log('Failed to update task:', error);
     }
@@ -172,6 +278,13 @@ export function useTaskManager() {
       }
 
       const newLog = buildLog(existingTask.owner, 'deleted', existingTask.name, nowLabel);
+
+      // cancel any scheduled notification for this task
+      try {
+        await cancelNotificationForTask(taskId);
+      } catch (e) {
+        // ignore
+      }
 
       await deleteTaskRecord(taskId);
       await insertLog(newLog);
