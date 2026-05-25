@@ -12,13 +12,18 @@ export function TaskCard({ task, onAdvance, onDelete, onDragMove, onDragEnd }) {
     () =>
       PanResponder.create({
         onStartShouldSetPanResponder: () => false,
+        onStartShouldSetPanResponderCapture: () => false,
         onMoveShouldSetPanResponder: (_, gestureState) =>
+          Math.abs(gestureState.dx) > 4 || Math.abs(gestureState.dy) > 4,
+        onMoveShouldSetPanResponderCapture: (_, gestureState) =>
           Math.abs(gestureState.dx) > 4 || Math.abs(gestureState.dy) > 4,
         onPanResponderGrant: () => {
           setIsDragging(true);
           dragOffset.setOffset({ x: 0, y: 0 });
           dragOffset.setValue({ x: 0, y: 0 });
         },
+        onPanResponderTerminationRequest: () => false,
+        onShouldBlockNativeResponder: () => true,
         onPanResponderMove: (_, gestureState) => {
           dragOffset.setValue({ x: gestureState.dx, y: gestureState.dy });
 

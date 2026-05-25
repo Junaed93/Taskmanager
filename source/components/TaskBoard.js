@@ -14,63 +14,63 @@ function pointInBounds(x, y, bounds) {
 
 export function TaskBoard({ isWide, taskGroups, onAdvance, onDelete }) {
   const boardRef = useRef(null);
-  const [boardBounds, setBoardBounds] = useState(null);
-  const [columnLayouts, setColumnLayouts] = useState({});
-  const [deleteLayout, setDeleteLayout] = useState(null);
+  const deleteZoneRef = useRef(null);
+  const columnRefs = useRef({});
+  const [columnBounds, setColumnBounds] = useState({});
+  const [deleteBounds, setDeleteBounds] = useState(null);
   const [activeTarget, setActiveTarget] = useState(null);
 
   const statusList = useMemo(() => Object.values(STATUS), []);
 
-  const measureBoard = useCallback(() => {
-    if (!boardRef.current?.measureInWindow) {
+  const measureZone = useCallback((ref, setBounds) => {
+    if (!ref?.measureInWindow) {
       return;
     }
 
-    boardRef.current.measureInWindow((x, y, width, height) => {
-      setBoardBounds({ x, y, width, height });
+    ref.measureInWindow((x, y, width, height) => {
+      setBounds({ x, y, width, height });
     });
   }, []);
 
+  const refreshMeasurements = useCallback(() => {
+    measureZone(deleteZoneRef.current, setDeleteBounds);
+
+    statusList.forEach((group) => {
+      measureZone(columnRefs.current[group], (nextBounds) => {
+        setColumnBounds((currentBounds) => ({
+          ...currentBounds,
+          [group]: nextBounds,
+        }));
+      });
+    });
+  }, [measureZone, statusList]);
+
   const resolveDropTarget = useCallback(
     (pageX, pageY) => {
-      if (!boardBounds) {
-        return null;
-      }
-
-      const toAbsoluteBounds = (layout) =>
-        layout
-          ? {
-              x: boardBounds.x + layout.x,
-              y: boardBounds.y + layout.y,
-              width: layout.width,
-              height: layout.height,
-            }
-          : null;
-
-      if (pointInBounds(pageX, pageY, toAbsoluteBounds(deleteLayout))) {
+      if (pointInBounds(pageX, pageY, deleteBounds)) {
         return { type: 'delete' };
       }
 
-      if (pointInBounds(pageX, pageY, toAbsoluteBounds(columnLayouts[STATUS.ONGOING]))) {
+      if (pointInBounds(pageX, pageY, columnBounds[STATUS.ONGOING])) {
         return { type: 'status', status: STATUS.ONGOING };
       }
 
-      if (pointInBounds(pageX, pageY, toAbsoluteBounds(columnLayouts[STATUS.COMPLETED]))) {
+      if (pointInBounds(pageX, pageY, columnBounds[STATUS.COMPLETED])) {
         return { type: 'status', status: STATUS.COMPLETED };
       }
 
-      if (pointInBounds(pageX, pageY, toAbsoluteBounds(columnLayouts[STATUS.TODO]))) {
+      if (pointInBounds(pageX, pageY, columnBounds[STATUS.TODO])) {
         return { type: 'status', status: STATUS.TODO };
       }
 
       return null;
     },
-    [boardBounds, columnLayouts, deleteLayout]
+    [columnBounds, deleteBounds]
   );
 
   useEffect(() => {
-    measureBoard();
-  }, [isWide, taskGroups, measureBoard]);
+    refreshMeasurements();
+  }, [isWide, taskGroups, refreshMeasurements]);
 
   const handleDragMove = useCallback(
     (taskId, pageX, pageY) => {
@@ -99,26 +99,18 @@ export function TaskBoard({ isWide, taskGroups, onAdvance, onDelete }) {
     [onAdvance, onDelete, resolveDropTarget]
   );
 
-  const registerColumnLayout = useCallback(
-    (group) => (event) => {
-      const { x, y, width, height } = event.nativeEvent.layout;
-      setColumnLayouts((currentLayouts) => ({
-        ...currentLayouts,
-        [group]: { x, y, width, height },
-      }));
+  const registerColumnRef = useCallback(
+    (group) => (node) => {
+      columnRefs.current[group] = node;
     },
     []
   );
 
-  const registerDeleteLayout = useCallback((event) => {
-    const { x, y, width, height } = event.nativeEvent.layout;
-    setDeleteLayout({ x, y, width, height });
-  }, []);
-
   return (
-    <View ref={boardRef} onLayout={measureBoard} style={[styles.board, isWide && styles.boardWide]}>
+    <View ref={boardRef} style={[styles.board, isWide && styles.boardWide]}>
       <View
-        onLayout={registerDeleteLayout}
+        ref={deleteZoneRef}
+        onLayout={refreshMeasurements}
         style={[styles.deleteZone, activeTarget?.type === 'delete' && styles.deleteZoneActive]}
       >
         <Text style={styles.deleteZoneTitle}>Drop here to delete</Text>
@@ -132,7 +124,8 @@ export function TaskBoard({ isWide, taskGroups, onAdvance, onDelete }) {
           return (
             <View
               key={group}
-              onLayout={registerColumnLayout(group)}
+              ref={registerColumnRef(group)}
+              onLayout={refreshMeasurements}
               style={[
                 styles.column,
                 isWide && styles.columnWide,
@@ -182,6 +175,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 12,
     marginBottom: 12,
+    minHeight: 180,
   },
   columnWide: {
     flex: 1,
