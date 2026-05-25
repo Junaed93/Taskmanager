@@ -242,6 +242,28 @@ export function useTaskManager() {
     }
   };
 
+  const sendStatusChangeNotification = async (task, nextStatus) => {
+    if (!task) {
+      return null;
+    }
+
+    const content = {
+      title: `${task.name} updated`,
+      body: `${task.name} moved to ${nextStatus}.`,
+      data: { taskId: task.id, status: nextStatus },
+    };
+
+    try {
+      return await Notifications.scheduleNotificationAsync({
+        content,
+        trigger: null,
+      });
+    } catch (error) {
+      console.log('sendStatusChangeNotification error', error);
+      return null;
+    }
+  };
+
   const cancelNotificationForTask = async (taskId) => {
     try {
       const map = await loadNotifMap();
@@ -284,6 +306,7 @@ export function useTaskManager() {
 
       await updateTaskStatusRecord(taskId, updatedTask.status);
       await insertLog(newLog);
+      await sendStatusChangeNotification(updatedTask, updatedTask.status);
 
       setTasks((prevTasks) =>
         prevTasks.map((task) => (task.id === taskId ? updatedTask : task))

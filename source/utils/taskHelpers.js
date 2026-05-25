@@ -26,11 +26,11 @@ export function getNextStatus(currentStatus) {
   return STATUS.TODO;
 }
 
-export function getDeadlineColor(task) {
-  return getDeadlineColorInfo(task).color;
+export function getDeadlineColor(task, nowMs = Date.now()) {
+  return getDeadlineColorInfo(task, nowMs).color;
 }
 
-export function getDeadlineColorInfo(task) {
+export function getDeadlineColorInfo(task, nowMs = Date.now()) {
   if (task.status === STATUS.COMPLETED) {
     return {
       color: 'rgb(40,180,85)',
@@ -42,8 +42,6 @@ export function getDeadlineColorInfo(task) {
 
   const deadlineMs = new Date(task.deadline).getTime();
   const startMs = new Date(task.startDateIso).getTime();
-  const nowMs = Date.now();
-
   if (!Number.isFinite(deadlineMs) || deadlineMs <= startMs) {
     return {
       color: 'rgb(255,0,0)',

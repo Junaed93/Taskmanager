@@ -12,13 +12,11 @@ export function TaskManagerScreen() {
   const { width } = useWindowDimensions();
   const isWide = width >= 900;
   const [isDraggingTask, setIsDraggingTask] = useState(false);
-  const [, setClockTick] = useState(Date.now());
   const [currentTime, setCurrentTime] = useState(Date.now());
 
   useEffect(() => {
     const timerId = setInterval(() => {
       const now = Date.now();
-      setClockTick(now);
       setCurrentTime(now);
     }, 1000);
 
@@ -96,8 +94,8 @@ export function TaskManagerScreen() {
           {activeTab === TAB_KEYS.BOARD ? (
             <TaskBoard
               isWide={isWide}
-              taskGroups={taskGroups}
               currentTime={currentTime}
+              taskGroups={taskGroups}
               onAdvance={updateTaskStatus}
               onDelete={deleteTask}
               onDragStateChange={setIsDraggingTask}

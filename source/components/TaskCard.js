@@ -4,8 +4,8 @@ import { PanGestureHandler, State } from 'react-native-gesture-handler';
 
 import { formatDateTimeLabel, formatMembersLabel, getDeadlineColorInfo } from '../utils/taskHelpers';
 
-export function TaskCard({ task, onAdvance, onDelete, onDragMove, onDragEnd, onDragStateChange }) {
-  const deadlineColor = getDeadlineColorInfo(task);
+export function TaskCard({ task, currentTime, onAdvance, onDelete, onDragMove, onDragEnd, onDragStateChange }) {
+  const deadlineColor = getDeadlineColorInfo(task, currentTime);
   const [isDragging, setIsDragging] = useState(false);
   const translate = useMemo(() => new Animated.ValueXY(), []);
   const gestureRef = useRef(null);
