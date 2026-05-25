@@ -1,12 +1,69 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Animated, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { formatDateTimeLabel, formatMembersLabel, getDeadlineColorInfo } from '../utils/taskHelpers';
 
-export function TaskCard({ task, onAdvance, onDelete }) {
+export function TaskCard({ task, onAdvance, onDelete, onDragMove, onDragEnd }) {
   const deadlineColor = getDeadlineColorInfo(task);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragOffset = useMemo(() => new Animated.ValueXY(), []);
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => false,
+        onMoveShouldSetPanResponder: (_, gestureState) =>
+          Math.abs(gestureState.dx) > 4 || Math.abs(gestureState.dy) > 4,
+        onPanResponderGrant: () => {
+          setIsDragging(true);
+          dragOffset.setOffset({ x: 0, y: 0 });
+          dragOffset.setValue({ x: 0, y: 0 });
+        },
+        onPanResponderMove: (_, gestureState) => {
+          dragOffset.setValue({ x: gestureState.dx, y: gestureState.dy });
+
+          if (onDragMove) {
+            onDragMove(task.id, gestureState.moveX, gestureState.moveY);
+          }
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          if (onDragEnd) {
+            onDragEnd(task.id, gestureState.moveX, gestureState.moveY);
+          }
+
+          setIsDragging(false);
+          dragOffset.flattenOffset();
+          Animated.spring(dragOffset, {
+            toValue: { x: 0, y: 0 },
+            useNativeDriver: false,
+          }).start();
+        },
+        onPanResponderTerminate: (_, gestureState) => {
+          if (onDragEnd) {
+            onDragEnd(task.id, gestureState.moveX, gestureState.moveY);
+          }
+
+          setIsDragging(false);
+          dragOffset.flattenOffset();
+          Animated.spring(dragOffset, {
+            toValue: { x: 0, y: 0 },
+            useNativeDriver: false,
+          }).start();
+        },
+      }),
+    [dragOffset, onDragEnd, onDragMove, task.id]
+  );
 
   return (
-    <View style={[styles.card, { borderLeftColor: deadlineColor.color }]}> 
+    <Animated.View
+      style={[
+        styles.card,
+        { borderLeftColor: deadlineColor.color },
+        isDragging && styles.cardDragging,
+        { transform: dragOffset.getTranslateTransform() },
+      ]}
+      {...panResponder.panHandlers}
+    >
       <Text style={styles.cardTitle}>{task.name || 'Untitled Task'}</Text>
       <Text style={styles.cardLine}>Owner: {task.owner || '-'}</Text>
       <Text style={styles.cardLine}>Start Date: {task.startDateLabel || formatDateTimeLabel(task.startDateIso)}</Text>
@@ -31,7 +88,7 @@ export function TaskCard({ task, onAdvance, onDelete }) {
           <Text style={styles.cardActionText}>Delete</Text>
         </Pressable>
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -42,6 +99,11 @@ const styles = StyleSheet.create({
     padding: 10,
     borderLeftWidth: 6,
     marginBottom: 10,
+  },
+  cardDragging: {
+    opacity: 0.92,
+    zIndex: 20,
+    elevation: 10,
   },
   cardActions: {
     flexDirection: 'row',

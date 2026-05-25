@@ -120,7 +120,7 @@ export function useTaskManager() {
     }
   };
 
-  const updateTaskStatus = async (taskId) => {
+  const updateTaskStatus = async (taskId, nextStatus) => {
     if (!isReady) {
       return;
     }
@@ -133,9 +133,15 @@ export function useTaskManager() {
         return;
       }
 
+      const resolvedStatus = nextStatus || getNextStatus(existingTask.status);
+
+      if (existingTask.status === resolvedStatus) {
+        return;
+      }
+
       const updatedTask = {
         ...existingTask,
-        status: getNextStatus(existingTask.status),
+        status: resolvedStatus,
       };
 
       const newLog = buildLog(existingTask.owner, 'updated', existingTask.name, nowLabel);
