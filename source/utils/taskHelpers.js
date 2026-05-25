@@ -36,6 +36,8 @@ export function getDeadlineColorInfo(task, nowMs = Date.now()) {
       color: 'rgb(40,180,85)',
       label: 'Completed = Green',
       progress: 1,
+      progressPercent: 100,
+      remainingMs: 0,
       completed: true,
     };
   }
@@ -47,6 +49,8 @@ export function getDeadlineColorInfo(task, nowMs = Date.now()) {
       color: 'rgb(255,0,0)',
       label: 'Deadline passed = Red',
       progress: 1,
+      progressPercent: 100,
+      remainingMs: 0,
       completed: false,
     };
   }
@@ -54,17 +58,44 @@ export function getDeadlineColorInfo(task, nowMs = Date.now()) {
   const totalWindow = deadlineMs - startMs;
   const elapsed = Math.max(0, nowMs - startMs);
   const fraction = Math.min(1, elapsed / totalWindow);
+  const remainingMs = Math.max(0, deadlineMs - nowMs);
+  const progressPercent = Math.round(fraction * 100);
+  const remainingPercent = Math.max(0, 100 - progressPercent);
 
-  const red = Math.round(255 * fraction);
-  const green = Math.round(255 - 255 * fraction);
-  const remainingPercent = Math.round((1 - fraction) * 100);
+  const red = Math.round((255 / totalWindow) * elapsed);
+  const green = Math.round(255 - (255 / totalWindow) * elapsed);
 
   return {
-    color: `rgb(${red},${green},95)`,
+    color: `rgb(${red},${green},0)`,
     label: `Green → Red (${remainingPercent}% left)`,
     progress: fraction,
+    progressPercent,
+    remainingMs,
     completed: false,
   };
+}
+
+export function formatDurationLabel(durationMs) {
+  const safeDuration = Math.max(0, durationMs);
+  const totalSeconds = Math.floor(safeDuration / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (days > 0) {
+    return `${days}d ${hours}h ${minutes}m`;
+  }
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m ${seconds}s`;
+  }
+
+  if (minutes > 0) {
+    return `${minutes}m ${seconds}s`;
+  }
+
+  return `${seconds}s`;
 }
 
 export function formatDateTimeLabel(value) {
