@@ -16,7 +16,8 @@ export function useTaskManager() {
   const [deadline, setDeadline] = useState('');
   const [priority, setPriority] = useState('Medium');
   const [requiredTime, setRequiredTime] = useState('');
-  const [members, setMembers] = useState('');
+  const [memberName, setMemberName] = useState('');
+  const [members, setMembers] = useState([]);
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState(STATUS.TODO);
   const [tasks, setTasks] = useState([]);
@@ -55,9 +56,31 @@ export function useTaskManager() {
     setDeadline('');
     setPriority('Medium');
     setRequiredTime('');
-    setMembers('');
+    setMemberName('');
+    setMembers([]);
     setDescription('');
     setStatus(STATUS.TODO);
+  };
+
+  const addMember = () => {
+    const nextMember = memberName.trim();
+
+    if (!nextMember) {
+      return;
+    }
+
+    setMembers((currentMembers) => {
+      if (currentMembers.includes(nextMember)) {
+        return currentMembers;
+      }
+
+      return [...currentMembers, nextMember];
+    });
+    setMemberName('');
+  };
+
+  const removeMember = (memberToRemove) => {
+    setMembers((currentMembers) => currentMembers.filter((member) => member !== memberToRemove));
   };
 
   const addTask = async () => {
@@ -79,7 +102,7 @@ export function useTaskManager() {
       deadline: deadline.trim(),
       priority,
       requiredTime: requiredTime.trim(),
-      members: members.trim(),
+      members,
       description: description.trim(),
       status,
     };
@@ -157,20 +180,24 @@ export function useTaskManager() {
   return {
     activeTab,
     addTask,
+    addMember,
     deadline,
     deleteTask,
     description,
     isReady,
     logs,
     members,
+    memberName,
     name,
     owner,
     priority,
     requiredTime,
+    removeMember,
     setActiveTab,
     setDeadline,
     setDescription,
     setMembers,
+    setMemberName,
     setName,
     setOwner,
     setPriority,

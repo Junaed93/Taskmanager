@@ -1,19 +1,25 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { getDeadlineColor } from '../utils/taskHelpers';
+import { formatDateTimeLabel, formatMembersLabel, getDeadlineColorInfo } from '../utils/taskHelpers';
 
 export function TaskCard({ task, onAdvance, onDelete }) {
+  const deadlineColor = getDeadlineColorInfo(task);
+
   return (
-    <View style={[styles.card, { borderLeftColor: getDeadlineColor(task) }]}> 
+    <View style={[styles.card, { borderLeftColor: deadlineColor.color }]}> 
       <Text style={styles.cardTitle}>{task.name || 'Untitled Task'}</Text>
       <Text style={styles.cardLine}>Owner: {task.owner || '-'}</Text>
-      <Text style={styles.cardLine}>Start Date: {task.startDateLabel}</Text>
-      <Text style={styles.cardLine}>Deadline: {task.deadline || '-'}</Text>
+      <Text style={styles.cardLine}>Start Date: {task.startDateLabel || formatDateTimeLabel(task.startDateIso)}</Text>
+      <Text style={styles.cardLine}>Deadline: {formatDateTimeLabel(task.deadline)}</Text>
       <Text style={styles.cardLine}>Priority: {task.priority}</Text>
       <Text style={styles.cardLine}>Required Time: {task.requiredTime || '-'}</Text>
-      <Text style={styles.cardLine}>Members: {task.members || '-'}</Text>
+      <Text style={styles.cardLine}>Members: {formatMembersLabel(task.members)}</Text>
       <Text style={styles.cardLine}>Description: {task.description || '-'}</Text>
       <Text style={styles.cardLine}>Status: {task.status}</Text>
+      <View style={styles.colorRow}>
+        <View style={[styles.colorSwatch, { backgroundColor: deadlineColor.color }]} />
+        <Text style={styles.colorText}>{deadlineColor.label}</Text>
+      </View>
       <View style={styles.cardActions}>
         <Pressable style={styles.cardActionBtn} onPress={() => onAdvance(task.id)}>
           <Text style={styles.cardActionText}>Update Status</Text>
@@ -66,5 +72,23 @@ const styles = StyleSheet.create({
     color: '#cbd5e1',
     fontSize: 12,
     marginBottom: 2,
+  },
+  colorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 6,
+  },
+  colorSwatch: {
+    width: 12,
+    height: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.35)',
+  },
+  colorText: {
+    color: '#f8fafc',
+    fontSize: 11,
+    fontWeight: '600',
   },
 });

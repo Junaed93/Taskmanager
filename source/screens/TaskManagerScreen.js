@@ -14,19 +14,22 @@ export function TaskManagerScreen() {
   const {
     activeTab,
     addTask,
+    addMember,
     deadline,
     deleteTask,
     description,
     logs,
+    memberName,
     members,
     name,
     owner,
     priority,
     requiredTime,
+    removeMember,
     setActiveTab,
     setDeadline,
     setDescription,
-    setMembers,
+    setMemberName,
     setName,
     setOwner,
     setPriority,
@@ -51,16 +54,19 @@ export function TaskManagerScreen() {
             {activeTab === TAB_KEYS.BOARD ? (
               <TaskForm
                 addTask={addTask}
+                addMember={addMember}
                 deadline={deadline}
                 description={description}
                 members={members}
+                memberName={memberName}
                 name={name}
                 owner={owner}
                 priority={priority}
                 requiredTime={requiredTime}
+                removeMember={removeMember}
                 setDeadline={setDeadline}
                 setDescription={setDescription}
-                setMembers={setMembers}
+                setMemberName={setMemberName}
                 setName={setName}
                 setOwner={setOwner}
                 setPriority={setPriority}

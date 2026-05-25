@@ -27,8 +27,17 @@ export function getNextStatus(currentStatus) {
 }
 
 export function getDeadlineColor(task) {
+  return getDeadlineColorInfo(task).color;
+}
+
+export function getDeadlineColorInfo(task) {
   if (task.status === STATUS.COMPLETED) {
-    return 'rgb(40,180,85)';
+    return {
+      color: 'rgb(40,180,85)',
+      label: 'Completed = Green',
+      progress: 1,
+      completed: true,
+    };
   }
 
   const deadlineMs = new Date(task.deadline).getTime();
@@ -36,7 +45,12 @@ export function getDeadlineColor(task) {
   const nowMs = Date.now();
 
   if (!Number.isFinite(deadlineMs) || deadlineMs <= startMs) {
-    return 'rgb(220,95,80)';
+    return {
+      color: 'rgb(255,0,0)',
+      label: 'Deadline passed = Red',
+      progress: 1,
+      completed: false,
+    };
   }
 
   const totalWindow = deadlineMs - startMs;
@@ -45,6 +59,50 @@ export function getDeadlineColor(task) {
 
   const red = Math.round(255 * fraction);
   const green = Math.round(255 - 255 * fraction);
+  const remainingPercent = Math.round((1 - fraction) * 100);
 
-  return `rgb(${red},${green},95)`;
+  return {
+    color: `rgb(${red},${green},95)`,
+    label: `Green → Red (${remainingPercent}% left)`,
+    progress: fraction,
+    completed: false,
+  };
+}
+
+export function formatDateTimeLabel(value) {
+  if (!value) {
+    return '-';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return date.toLocaleString();
+}
+
+export function normalizeMembers(value) {
+  if (Array.isArray(value)) {
+    return value.filter(Boolean);
+  }
+
+  if (typeof value !== 'string') {
+    return [];
+  }
+
+  return value
+    .split(',')
+    .map((member) => member.trim())
+    .filter(Boolean);
+}
+
+export function serializeMembers(value) {
+  return normalizeMembers(value).join(', ');
+}
+
+export function formatMembersLabel(value) {
+  const members = normalizeMembers(value);
+
+  return members.length > 0 ? members.join(', ') : '-';
 }

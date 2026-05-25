@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SQLite from 'expo-sqlite';
 
 import { STORAGE_KEYS } from '../constants/taskManager';
+import { normalizeMembers, serializeMembers } from '../utils/taskHelpers';
 
 const DATABASE_NAME = 'taskmanager.db';
 
@@ -17,7 +18,7 @@ function mapTaskRow(row) {
     deadline: row.deadline,
     priority: row.priority,
     requiredTime: row.requiredTime,
-    members: row.members,
+    members: normalizeMembers(row.members),
     description: row.description,
     status: row.status,
   };
@@ -104,7 +105,7 @@ async function migrateLegacyStorageIfNeeded(db) {
         task.deadline,
         task.priority,
         task.requiredTime,
-        task.members,
+        serializeMembers(task.members),
         task.description,
         task.status
       );
@@ -166,7 +167,7 @@ export async function insertTask(task) {
     task.deadline,
     task.priority,
     task.requiredTime,
-    task.members,
+    serializeMembers(task.members),
     task.description,
     task.status
   );
