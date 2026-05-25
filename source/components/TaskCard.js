@@ -3,7 +3,7 @@ import { Animated, PanResponder, Pressable, Platform, StyleSheet, Text, View } f
 
 import { formatDateTimeLabel, formatMembersLabel, getDeadlineColorInfo } from '../utils/taskHelpers';
 
-export function TaskCard({ task, onAdvance, onDelete, onDragMove, onDragEnd }) {
+export function TaskCard({ task, onAdvance, onDelete, onDragMove, onDragEnd, onDragStateChange }) {
   const deadlineColor = getDeadlineColorInfo(task);
   const [isDragging, setIsDragging] = useState(false);
   const [webDragOffset, setWebDragOffset] = useState({ x: 0, y: 0 });
@@ -49,6 +49,7 @@ export function TaskCard({ task, onAdvance, onDelete, onDragMove, onDragEnd }) {
       setIsDragging(false);
       setWebDragOffset({ x: 0, y: 0 });
       setWebDragSession(null);
+      onDragStateChange?.(false);
     };
 
     const handleMove = (event) => {
@@ -78,7 +79,7 @@ export function TaskCard({ task, onAdvance, onDelete, onDragMove, onDragEnd }) {
       window.removeEventListener('pointerup', handleUp, true);
       window.removeEventListener('pointercancel', handleUp, true);
     };
-  }, [isWeb, onDragEnd, onDragMove, task.id, webDragSession]);
+  }, [isWeb, onDragEnd, onDragMove, onDragStateChange, task.id, webDragSession]);
 
   const panResponder = useMemo(
     () =>
@@ -90,6 +91,7 @@ export function TaskCard({ task, onAdvance, onDelete, onDragMove, onDragEnd }) {
         onMoveShouldSetPanResponderCapture: (_, gestureState) =>
           Math.abs(gestureState.dx) > 4 || Math.abs(gestureState.dy) > 4,
         onPanResponderGrant: () => {
+          onDragStateChange?.(true);
           setIsDragging(true);
           dragOffset.setOffset({ x: 0, y: 0 });
           dragOffset.setValue({ x: 0, y: 0 });
@@ -108,6 +110,7 @@ export function TaskCard({ task, onAdvance, onDelete, onDragMove, onDragEnd }) {
             onDragEnd(task.id, gestureState.moveX, gestureState.moveY);
           }
 
+          onDragStateChange?.(false);
           setIsDragging(false);
           dragOffset.flattenOffset();
           Animated.spring(dragOffset, {
@@ -120,6 +123,7 @@ export function TaskCard({ task, onAdvance, onDelete, onDragMove, onDragEnd }) {
             onDragEnd(task.id, gestureState.moveX, gestureState.moveY);
           }
 
+          onDragStateChange?.(false);
           setIsDragging(false);
           dragOffset.flattenOffset();
           Animated.spring(dragOffset, {
@@ -177,6 +181,7 @@ export function TaskCard({ task, onAdvance, onDelete, onDragMove, onDragEnd }) {
             startX: event.pageX,
             startY: event.pageY,
           };
+          onDragStateChange?.(true);
           setIsDragging(true);
           setWebDragSession({ pointerId: event.pointerId });
           setWebDragOffset({ x: 0, y: 0 });

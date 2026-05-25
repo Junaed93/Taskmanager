@@ -12,7 +12,7 @@ function pointInBounds(x, y, bounds) {
   return x >= bounds.x && x <= bounds.x + bounds.width && y >= bounds.y && y <= bounds.y + bounds.height;
 }
 
-export function TaskBoard({ isWide, taskGroups, onAdvance, onDelete }) {
+export function TaskBoard({ isWide, taskGroups, onAdvance, onDelete, onDragStateChange }) {
   const boardRef = useRef(null);
   const deleteZoneRef = useRef(null);
   const columnRefs = useRef({});
@@ -173,6 +173,7 @@ export function TaskBoard({ isWide, taskGroups, onAdvance, onDelete }) {
                     onDelete={onDelete}
                     onDragMove={handleDragMove}
                     onDragEnd={handleDragEnd}
+                    onDragStateChange={onDragStateChange}
                   />
                 ))
               )}

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { TAB_KEYS } from '../constants/taskManager';
@@ -10,6 +11,7 @@ import { TaskForm } from '../components/TaskForm';
 export function TaskManagerScreen() {
   const { width } = useWindowDimensions();
   const isWide = width >= 900;
+  const [isDraggingTask, setIsDraggingTask] = useState(false);
 
   const {
     activeTab,
@@ -43,7 +45,7 @@ export function TaskManagerScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="light" />
-      <ScrollView contentContainerStyle={styles.screen}>
+      <ScrollView scrollEnabled={!isDraggingTask} contentContainerStyle={styles.screen}>
         <View style={[styles.content, isWide && styles.contentWide]}>
           <View style={[styles.formCard, isWide && styles.formCardWide]}>
             <Text style={styles.heading}>Task Manager</Text>
@@ -85,6 +87,7 @@ export function TaskManagerScreen() {
               taskGroups={taskGroups}
               onAdvance={updateTaskStatus}
               onDelete={deleteTask}
+              onDragStateChange={setIsDraggingTask}
             />
           ) : null}
         </View>
