@@ -16,7 +16,6 @@ export function TaskForm({
   name,
   owner,
   priority,
-  requiredTime,
   removeMember,
   setDeadline,
   setDescription,
@@ -24,7 +23,6 @@ export function TaskForm({
   setName,
   setOwner,
   setPriority,
-  setRequiredTime,
   setStatus,
   status,
 }) {
@@ -184,13 +182,6 @@ export function TaskForm({
           />
         ) : null}
       </View>
-      <TextInput
-        style={styles.input}
-        placeholder="Required Time (e.g. 6h)"
-        placeholderTextColor="#6b7280"
-        value={requiredTime}
-        onChangeText={setRequiredTime}
-      />
       <Text style={styles.label}>Members</Text>
       <View style={styles.memberRow}>
         <TextInput

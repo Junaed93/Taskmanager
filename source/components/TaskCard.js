@@ -2,7 +2,12 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { PanGestureHandler, State } from 'react-native-gesture-handler';
 
-import { formatDateTimeLabel, formatDurationLabel, formatMembersLabel, getDeadlineColorInfo } from '../utils/taskHelpers';
+import {
+  formatDateTimeLabel,
+  formatMembersLabel,
+  getCalculatedRequiredTimeLabel,
+  getDeadlineColorInfo,
+} from '../utils/taskHelpers';
 
 export function TaskCard({
   task,
@@ -23,7 +28,7 @@ export function TaskCard({
   const translate = useMemo(() => new Animated.ValueXY(), []);
   const gestureRef = useRef(null);
   const comments = Array.isArray(task.comments) ? task.comments : [];
-  const remainingTimeLabel = formatDurationLabel(deadlineColor.remainingMs ?? 0);
+  const calculatedRequiredTime = getCalculatedRequiredTimeLabel(task);
 
   const onGestureEvent = useCallback(
     (event) => {
@@ -86,9 +91,9 @@ export function TaskCard({
           <Text style={styles.metaLine}><Text style={styles.metaLabel}>Owner: </Text><Text style={styles.metaValue}>{task.owner || '-'}</Text></Text>
           <Text style={styles.metaLine}><Text style={styles.metaLabel}>Start: </Text><Text style={styles.metaValue}>{task.startDateLabel || formatDateTimeLabel(task.startDateIso)}</Text></Text>
           <Text style={styles.metaLine}><Text style={styles.metaLabel}>Deadline: </Text><Text style={styles.metaValue}>{formatDateTimeLabel(task.deadline)}</Text></Text>
+          <Text style={styles.metaLine}><Text style={styles.metaLabel}>Required Time: </Text><Text style={styles.metaValue}>{calculatedRequiredTime}</Text></Text>
           <Text style={styles.metaLine}><Text style={styles.metaLabel}>Priority: </Text><Text style={styles.metaValue}>{task.priority}</Text></Text>
           <Text style={styles.metaLine}><Text style={styles.metaLabel}>Members: </Text><Text style={styles.metaValue}>{formatMembersLabel(task.members)}</Text></Text>
-          <Text style={styles.metaLine}><Text style={styles.metaLabel}>Remaining: </Text><Text style={styles.metaValue}>{remainingTimeLabel}</Text></Text>
         </View>
 
         <Text style={styles.description}>{task.description || '-'}</Text>
@@ -164,32 +169,34 @@ export function TaskCard({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 10,
-    padding: 10,
+    borderRadius: 14,
+    padding: 12,
     marginBottom: 12,
     position: 'relative',
     zIndex: 0,
+    borderWidth: 1,
+    borderColor: '#0f172a',
   },
   cardDragging: {
-    opacity: 0.92,
+    opacity: 0.96,
     zIndex: 20,
-    elevation: 10,
+    elevation: 12,
   },
   cardInner: {
     backgroundColor: 'transparent',
-    borderRadius: 8,
+    borderRadius: 10,
     padding: 8,
     gap: 12,
   },
   infoBlock: {
-    backgroundColor: '#1f2937',
-    borderRadius: 8,
-    padding: 10,
+    backgroundColor: '#0f172a',
+    borderRadius: 10,
+    padding: 12,
   },
   actionsBlock: {
-    backgroundColor: '#1f2937',
-    borderRadius: 8,
-    padding: 10,
+    backgroundColor: '#0f172a',
+    borderRadius: 10,
+    padding: 12,
   },
   headerRow: {
     flexDirection: 'row',
@@ -199,18 +206,18 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   cardTitle: {
-    color: '#ffffff',
-    fontSize: 16,
+    color: '#f8fafc',
+    fontSize: 17,
     fontWeight: '900',
     flex: 1,
   },
   statusPill: {
-    backgroundColor: '#111827',
+    backgroundColor: '#1e293b',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#000000',
+    borderColor: '#334155',
   },
   statusPillText: {
     color: '#ffffff',
@@ -281,7 +288,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   commentItem: {
-    backgroundColor: '#111827',
+    backgroundColor: '#1e293b',
     borderRadius: 10,
     padding: 8,
   },
@@ -312,8 +319,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   commentInput: {
-    backgroundColor: '#111827',
-    borderColor: '#000000',
+    backgroundColor: '#1e293b',
+    borderColor: '#334155',
     borderWidth: 1,
     borderRadius: 10,
     color: '#f8fafc',

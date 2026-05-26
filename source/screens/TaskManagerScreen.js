@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { TAB_KEYS } from '../constants/taskManager';
@@ -10,11 +10,12 @@ import { TaskForm } from '../components/TaskForm';
 import { TaskList } from '../components/TaskList';
 
 export function TaskManagerScreen() {
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const isWide = width >= 900;
-  const [isDraggingTask, setIsDraggingTask] = useState(false);
   const [currentTime, setCurrentTime] = useState(Date.now());
   const [isFormVisible, setIsFormVisible] = useState(true);
+  const scrollRef = useRef(null);
+  const scrollYRef = useRef(0);
 
   useEffect(() => {
     const timerId = setInterval(() => {
@@ -39,7 +40,6 @@ export function TaskManagerScreen() {
     name,
     owner,
     priority,
-    requiredTime,
     removeMember,
     setActiveTab,
     setDeadline,
@@ -48,7 +48,6 @@ export function TaskManagerScreen() {
     setName,
     setOwner,
     setPriority,
-    setRequiredTime,
     setStatus,
     status,
     taskGroups,
@@ -60,6 +59,7 @@ export function TaskManagerScreen() {
   const isListTab = activeTab === TAB_KEYS.LIST;
   const isLogsTab = activeTab === TAB_KEYS.LOGS;
   const hasTasks = tasks.length > 0;
+  const logsPanelHeight = Math.max(height - 190, 360);
 
   const handleCreateTask = async () => {
     const created = await addTask();
@@ -75,11 +75,37 @@ export function TaskManagerScreen() {
       ? 'See every task in deadline order, with the nearest due date first.'
       : 'Review the add, update, and delete history for each task.';
 
+  const handleDragMovePageY = useCallback(
+    (pageY) => {
+      const edgeThreshold = 120;
+      const scrollStep = 24;
+      const currentY = scrollYRef.current;
+
+      if (pageY <= edgeThreshold) {
+        scrollRef.current?.scrollTo({ y: Math.max(0, currentY - scrollStep), animated: false });
+        return;
+      }
+
+      if (pageY >= height - edgeThreshold) {
+        scrollRef.current?.scrollTo({ y: currentY + scrollStep, animated: false });
+      }
+    },
+    [height]
+  );
+
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { width }]}>
       <StatusBar style="light" />
-      <ScrollView scrollEnabled={!isDraggingTask} contentContainerStyle={styles.screen}>
-        <View style={styles.content}>
+      <ScrollView
+        ref={scrollRef}
+        style={[styles.scroll, { width }]}
+        onScroll={(event) => {
+          scrollYRef.current = event.nativeEvent.contentOffset.y;
+        }}
+        scrollEventThrottle={16}
+        contentContainerStyle={[styles.screen, { width, minWidth: width }]}
+      >
+        <View style={[styles.content, { width: Math.max(width - 28, 0), minWidth: Math.max(width - 28, 0) }]}>
           <Text style={styles.heading}>Task Manager</Text>
           <Text style={styles.subheading}>{subheading}</Text>
 
@@ -98,7 +124,6 @@ export function TaskManagerScreen() {
                   name={name}
                   owner={owner}
                   priority={priority}
-                  requiredTime={requiredTime}
                   removeMember={removeMember}
                   setDeadline={setDeadline}
                   setDescription={setDescription}
@@ -106,7 +131,6 @@ export function TaskManagerScreen() {
                   setName={setName}
                   setOwner={setOwner}
                   setPriority={setPriority}
-                  setRequiredTime={setRequiredTime}
                   setStatus={setStatus}
                   status={status}
                 />
@@ -129,10 +153,15 @@ export function TaskManagerScreen() {
                       onAdvance={updateTaskStatus}
                       onDelete={deleteTask}
                       onAddComment={addTaskComment}
-                      onDragStateChange={setIsDraggingTask}
+                      onDragMovePageY={handleDragMovePageY}
                     />
                   </View>
-                ) : null}
+                ) : (
+                  <View style={styles.emptyBoardCard}>
+                    <Text style={styles.emptyBoardTitle}>No tasks yet</Text>
+                    <Text style={styles.emptyBoardText}>Create your first task and start dragging cards across columns.</Text>
+                  </View>
+                )}
               </View>
             )
           ) : isListTab ? (
@@ -144,7 +173,7 @@ export function TaskManagerScreen() {
               onAddComment={addTaskComment}
             />
           ) : isLogsTab ? (
-            <ActivityLogList logs={logs} />
+            <ActivityLogList logs={logs} panelHeight={logsPanelHeight} />
           ) : null}
         </View>
       </ScrollView>
@@ -156,15 +185,19 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#111827',
+    alignSelf: 'stretch',
+  },
+  scroll: {
+    flex: 1,
   },
   screen: {
+    flexGrow: 1,
     padding: 14,
     paddingBottom: 26,
-    alignItems: 'center',
+    alignItems: 'stretch',
   },
   content: {
-    width: '100%',
-    maxWidth: 1200,
+    alignSelf: 'stretch',
   },
   contentWide: {
     alignItems: 'stretch',
@@ -220,5 +253,22 @@ const styles = StyleSheet.create({
   formCardWide: {
     width: 380,
     marginBottom: 0,
+  },
+  emptyBoardCard: {
+    backgroundColor: '#1f2937',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#334155',
+    padding: 14,
+  },
+  emptyBoardTitle: {
+    color: '#e2e8f0',
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  emptyBoardText: {
+    color: '#94a3b8',
+    fontSize: 13,
+    marginTop: 6,
   },
 });

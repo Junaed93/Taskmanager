@@ -136,6 +136,21 @@ export function formatMembersLabel(value) {
   return members.length > 0 ? members.join(', ') : '-';
 }
 
+export function getCalculatedRequiredTimeLabel(task) {
+  if (!task) {
+    return '-';
+  }
+
+  const startMs = new Date(task.startDateIso).getTime();
+  const deadlineMs = new Date(task.deadline).getTime();
+
+  if (Number.isFinite(startMs) && Number.isFinite(deadlineMs) && deadlineMs > startMs) {
+    return formatDurationLabel(deadlineMs - startMs);
+  }
+
+  return '-';
+}
+
 function normalizeCommentEntry(entry) {
   if (!entry) {
     return null;

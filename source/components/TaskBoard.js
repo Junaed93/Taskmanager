@@ -43,6 +43,7 @@ export function TaskBoard({
   onAdvance,
   onDelete,
   onAddComment,
+  onDragMovePageY,
   onDragStateChange,
 }) {
   const boardRef = useRef(null);
@@ -154,8 +155,9 @@ export function TaskBoard({
         lastValidTargetRef.current = nextTarget;
       }
       setActiveTarget(nextTarget);
+      onDragMovePageY?.(pageY);
     },
-    [resolveDropTarget]
+    [onDragMovePageY, resolveDropTarget]
   );
 
   const handleDragEnd = useCallback(

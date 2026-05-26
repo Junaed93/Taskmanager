@@ -20,7 +20,6 @@ export function useTaskManager() {
   const [owner, setOwner] = useState('');
   const [deadline, setDeadline] = useState('');
   const [priority, setPriority] = useState('Medium');
-  const [requiredTime, setRequiredTime] = useState('');
   const [memberName, setMemberName] = useState('');
   const [members, setMembers] = useState([]);
   const [description, setDescription] = useState('');
@@ -114,7 +113,6 @@ export function useTaskManager() {
     setOwner('');
     setDeadline('');
     setPriority('Medium');
-    setRequiredTime('');
     setMemberName('');
     setMembers([]);
     setDescription('');
@@ -160,7 +158,6 @@ export function useTaskManager() {
       startDateLabel: now.toLocaleString(),
       deadline: deadline.trim(),
       priority,
-      requiredTime: requiredTime.trim(),
       members,
       description: description.trim(),
       status,
@@ -415,7 +412,6 @@ export function useTaskManager() {
     name,
     owner,
     priority,
-    requiredTime,
     removeMember,
     setActiveTab,
     setDeadline,
@@ -425,7 +421,6 @@ export function useTaskManager() {
     setName,
     setOwner,
     setPriority,
-    setRequiredTime,
     setStatus,
     status,
     taskGroups,
