@@ -28,6 +28,7 @@ export function useTaskManager() {
   const [logs, setLogs] = useState([]);
   const [activeTab, setActiveTab] = useState(TAB_KEYS.BOARD);
   const [isReady, setIsReady] = useState(false);
+  const tasksRef = useRef(tasks);
 
   useEffect(() => {
     const load = async () => {
@@ -44,6 +45,10 @@ export function useTaskManager() {
 
     load();
   }, []);
+
+  useEffect(() => {
+    tasksRef.current = tasks;
+  }, [tasks]);
 
   useEffect(() => {
     const setupNotifications = async () => {
@@ -99,8 +104,9 @@ export function useTaskManager() {
     syncNotifications();
   }, [isReady, tasks]);
 
-  // web alert 
-  const alertedRef = useRef(new Set());
+  // web alert
+  const alertedRef = useRef(new Map());
+  const lastWebCheckRef = useRef(Date.now());
   const webIntervalRef = useRef(null);
 
   useEffect(() => {
@@ -112,16 +118,19 @@ export function useTaskManager() {
       webIntervalRef.current = null;
     }
 
-    alertedRef.current = new Set();
+    lastWebCheckRef.current = Date.now();
 
     webIntervalRef.current = setInterval(() => {
+      const previousCheck = lastWebCheckRef.current;
       const now = Date.now();
-      for (const task of tasks) {
+      lastWebCheckRef.current = now;
+
+      for (const task of tasksRef.current) {
         if (!task || !task.deadline) continue;
         if (task.status === STATUS.COMPLETED) continue;
         const when = new Date(task.deadline).getTime();
         if (Number.isNaN(when)) continue;
-        if (when <= now && !alertedRef.current.has(task.id)) {
+        if (when > previousCheck && when <= now && alertedRef.current.get(task.id) !== when) {
           try {
             alert(`Task due: ${task.name}`);
           } catch (e) {
@@ -131,7 +140,7 @@ export function useTaskManager() {
               console.log('Web alert failed for task', task.id);
             }
           }
-          alertedRef.current.add(task.id);
+          alertedRef.current.set(task.id, when);
         }
       }
     }, 1000);
