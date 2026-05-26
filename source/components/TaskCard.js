@@ -27,6 +27,7 @@ export function TaskCard({
   const [commentText, setCommentText] = useState('');
   const translate = useMemo(() => new Animated.ValueXY(), []);
   const gestureRef = useRef(null);
+  const lastPageYRef = useRef(null);
   const comments = Array.isArray(task.comments) ? task.comments : [];
   const calculatedRequiredTime = getCalculatedRequiredTimeLabel(task);
 
@@ -35,9 +36,13 @@ export function TaskCard({
       const ne = event.nativeEvent || {};
       const pageX = ne.absoluteX ?? ne.pageX ?? 0;
       const pageY = ne.absoluteY ?? ne.pageY ?? 0;
+      const previousPageY = lastPageYRef.current;
+      const deltaY = previousPageY == null ? 0 : pageY - previousPageY;
+
+      lastPageYRef.current = pageY;
 
       translate.setValue({ x: ne.translationX ?? 0, y: ne.translationY ?? 0 });
-      onDragMove?.(task.id, pageX, pageY);
+      onDragMove?.(task.id, pageX, pageY, deltaY);
     },
     [onDragMove, task.id, translate]
   );
@@ -50,14 +55,15 @@ export function TaskCard({
       const pageY = ne.absoluteY ?? ne.pageY ?? 0;
 
       if (state === State.ACTIVE) {
-        onDragStateChange?.(true);
+        onDragStateChange?.(task.id, true);
         setIsDragging(true);
       }
 
       if (state === State.END || state === State.CANCELLED || state === State.FAILED) {
         onDragEnd?.(task.id, pageX, pageY);
-        onDragStateChange?.(false);
+        onDragStateChange?.(task.id, false);
         setIsDragging(false);
+        lastPageYRef.current = null;
 
         Animated.spring(translate, {
           toValue: { x: 0, y: 0 },

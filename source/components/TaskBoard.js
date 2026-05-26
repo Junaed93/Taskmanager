@@ -54,6 +54,7 @@ export function TaskBoard({
   const [columnBounds, setColumnBounds] = useState({});
   const [deleteBounds, setDeleteBounds] = useState(null);
   const [activeTarget, setActiveTarget] = useState(null);
+  const [draggingTaskId, setDraggingTaskId] = useState(null);
 
   const statusList = useMemo(() => Object.values(STATUS), []);
 
@@ -84,7 +85,6 @@ export function TaskBoard({
     (pageX, pageY) => {
       const point = { x: pageX, y: pageY };
 
-      // Prefer column hits first (avoid accidental deletes when zones overlap)
       if (pointInBounds(pageX, pageY, columnBounds[STATUS.ONGOING])) {
         return { type: 'status', status: STATUS.ONGOING };
       }
@@ -182,6 +182,11 @@ export function TaskBoard({
     [onAdvance, onDelete, resolveDropTarget]
   );
 
+  const handleDragStateChange = useCallback((taskId, isDragging) => {
+    setDraggingTaskId(isDragging ? taskId : null);
+    onDragStateChange?.(isDragging);
+  }, [onDragStateChange]);
+
   const registerColumnRef = useCallback(
     (group) => (node) => {
       columnRefs.current[group] = node;
@@ -231,6 +236,7 @@ export function TaskBoard({
                 styles.column,
                 isWide && styles.columnWide,
                 isActive && styles.columnActive,
+                draggingTaskId && taskGroups[group].some((task) => task.id === draggingTaskId) && styles.columnDragging,
               ]}
             >
               <Text style={styles.columnTitle}>{group}</Text>
@@ -247,7 +253,7 @@ export function TaskBoard({
                     onAddComment={onAddComment}
                     onDragMove={handleDragMove}
                     onDragEnd={handleDragEnd}
-                    onDragStateChange={onDragStateChange}
+                    onDragStateChange={handleDragStateChange}
                   />
                 ))
               )}
@@ -264,7 +270,7 @@ export function TaskBoard({
         style={[styles.deleteZone, activeTarget?.type === 'delete' && styles.deleteZoneActive]}
       >
         <Text style={styles.deleteZoneTitle}>Drop here to delete</Text>
-        <Text style={styles.deleteZoneText}>Drag a task card onto this area to remove it</Text>
+        <Text style={styles.deleteZoneText}>Drag a task card onto this area for deleting it</Text>
       </View>
     </View>
   );
@@ -295,7 +301,7 @@ const styles = StyleSheet.create({
     minHeight: 180,
     position: 'relative',
     zIndex: 2,
-    overflow: 'hidden',
+    overflow: 'visible',
   },
   columnWide: {
     flex: 1,
@@ -305,6 +311,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#93c5fd',
     backgroundColor: '#243244',
+  },
+  columnDragging: {
+    zIndex: 30,
+    elevation: 30,
   },
   columnTitle: {
     color: '#f3f4f6',

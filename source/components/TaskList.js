@@ -25,7 +25,7 @@ export function TaskList({ tasks, currentTime, onAdvance, onDelete, onAddComment
   return (
     <View style={styles.listCard}>
       <Text style={styles.heading}>Task List</Text>
-      <Text style={styles.note}>Sorted by deadline, earliest due date first.</Text>
+      <Text style={styles.note}>Sorted by deadline</Text>
       {sortedTasks.length === 0 ? (
         <Text style={styles.emptyText}>No tasks yet</Text>
       ) : (

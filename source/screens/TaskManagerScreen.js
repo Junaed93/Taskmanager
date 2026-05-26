@@ -159,7 +159,7 @@ export function TaskManagerScreen() {
                 ) : (
                   <View style={styles.emptyBoardCard}>
                     <Text style={styles.emptyBoardTitle}>No tasks yet</Text>
-                    <Text style={styles.emptyBoardText}>Create your first task and start dragging cards across columns.</Text>
+                    <Text style={styles.emptyBoardText}>Create your first task by clicking the "Add Task" button.</Text>
                   </View>
                 )}
               </View>

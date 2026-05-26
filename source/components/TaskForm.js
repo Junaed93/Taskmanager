@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { PRIORITIES, STATUS } from '../constants/taskManager';
@@ -66,9 +66,7 @@ export function TaskForm({
   };
 
   const updateDeadlineDate = (_, selectedDate) => {
-    if (Platform.OS !== 'web') {
-      setShowDatePicker(false);
-    }
+    setShowDatePicker(false);
 
     if (!selectedDate) {
       return;
@@ -85,9 +83,7 @@ export function TaskForm({
   };
 
   const updateDeadlineTime = (_, selectedTime) => {
-    if (Platform.OS !== 'web') {
-      setShowTimePicker(false);
-    }
+    setShowTimePicker(false);
 
     if (!selectedTime) {
       return;
@@ -116,11 +112,62 @@ export function TaskForm({
     setDeadline(parsed.toISOString());
   };
 
+  const openDatePicker = () => {
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({
+        value: deadlineDate || new Date(),
+        mode: 'date',
+        onChange: (event, selectedDate) => {
+          if (event.type !== 'set' || !selectedDate) {
+            return;
+          }
+
+          const nextDeadline = getDeadlineBase();
+          nextDeadline.setFullYear(
+            selectedDate.getFullYear(),
+            selectedDate.getMonth(),
+            selectedDate.getDate()
+          );
+
+          setDeadline(nextDeadline.toISOString());
+        },
+      });
+
+      return;
+    }
+
+    setShowDatePicker(true);
+  };
+
+  const openTimePicker = () => {
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({
+        value: deadlineDate || new Date(),
+        mode: 'time',
+        is24Hour: false,
+        onChange: (event, selectedTime) => {
+          if (event.type !== 'set' || !selectedTime) {
+            return;
+          }
+
+          const nextDeadline = getDeadlineBase();
+          nextDeadline.setHours(selectedTime.getHours(), selectedTime.getMinutes(), 0, 0);
+
+          setDeadline(nextDeadline.toISOString());
+        },
+      });
+
+      return;
+    }
+
+    setShowTimePicker(true);
+  };
+
   return (
     <View>
       <View style={styles.formHeaderRow}>
         <Text style={styles.formHeaderTitle}>Create Task</Text>
-        <Text style={styles.helperText}>Fill the form, then create the task.</Text>
+        <Text style={styles.helperText}>Fill the form to create a new task</Text>
       </View>
       <TextInput
         style={styles.input}
@@ -139,12 +186,12 @@ export function TaskForm({
       <View style={styles.startDatePreview}>
         <Text style={styles.startDateLabel}>Start Date</Text>
         <Text style={styles.startDateValue}>{formatDateTimeLabel(new Date().toISOString())}</Text>
-        <Text style={styles.helperText}>This will be captured automatically when you create the task.</Text>
+        <Text style={styles.helperText}>Auto capture by react time module</Text>
       </View>
       <View style={styles.pickerCard}>
         <Text style={styles.label}>Deadline</Text>
         <Text style={styles.helperText}>
-          Pick a calendar date and a clock time. Current selection: {formatDateTimeLabel(deadline)}
+          Pick date and time. Current selection: {formatDateTimeLabel(deadline)}
         </Text>
         {Platform.OS === 'web' ? (
           <View style={styles.deadlineWebRow}>
@@ -157,10 +204,10 @@ export function TaskForm({
           </View>
         ) : (
           <View style={styles.deadlineButtonRow}>
-            <Pressable style={styles.secondaryBtn} onPress={() => setShowDatePicker(true)}>
+            <Pressable style={styles.secondaryBtn} onPress={openDatePicker}>
               <Text style={styles.secondaryBtnText}>Pick Date</Text>
             </Pressable>
-            <Pressable style={styles.secondaryBtn} onPress={() => setShowTimePicker(true)}>
+            <Pressable style={styles.secondaryBtn} onPress={openTimePicker}>
               <Text style={styles.secondaryBtnText}>Pick Time</Text>
             </Pressable>
           </View>

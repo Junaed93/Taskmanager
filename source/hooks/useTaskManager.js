@@ -168,7 +168,7 @@ export function useTaskManager() {
 
     try {
       await insertTask(task);
-      // schedule notification for deadline
+      // notification for deadline
       try {
         await scheduleNotificationForTask(task);
       } catch (e) {
@@ -223,7 +223,6 @@ export function useTaskManager() {
     }
   };
 
-  // Notification helpers use AsyncStorage to persist mapping taskId -> notificationId
   const NOTIF_KEY = 'taskmanager.notifications.v1';
 
   const loadNotifMap = async () => {
@@ -249,7 +248,6 @@ export function useTaskManager() {
     const when = new Date(task.deadline);
     if (Number.isNaN(when.getTime())) return null;
 
-    // don't schedule past notifications
     if (when.getTime() <= Date.now()) return null;
 
     const content = {
