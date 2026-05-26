@@ -7,6 +7,7 @@ import {
   formatMembersLabel,
   getCalculatedRequiredTimeLabel,
   getDeadlineColorInfo,
+  getRemainingTimeLabel,
 } from '../utils/taskHelpers';
 
 export function TaskCard({
@@ -30,6 +31,7 @@ export function TaskCard({
   const lastPageYRef = useRef(null);
   const comments = Array.isArray(task.comments) ? task.comments : [];
   const calculatedRequiredTime = getCalculatedRequiredTimeLabel(task);
+  const remainingTimeLabel = getRemainingTimeLabel(task, currentTime);
 
   const onGestureEvent = useCallback(
     (event) => {
@@ -98,11 +100,15 @@ export function TaskCard({
           <Text style={styles.metaLine}><Text style={styles.metaLabel}>Start: </Text><Text style={styles.metaValue}>{task.startDateLabel || formatDateTimeLabel(task.startDateIso)}</Text></Text>
           <Text style={styles.metaLine}><Text style={styles.metaLabel}>Deadline: </Text><Text style={styles.metaValue}>{formatDateTimeLabel(task.deadline)}</Text></Text>
           <Text style={styles.metaLine}><Text style={styles.metaLabel}>Required Time: </Text><Text style={styles.metaValue}>{calculatedRequiredTime}</Text></Text>
+          <Text style={styles.metaLine}><Text style={styles.metaLabel}>Time Left: </Text><Text style={styles.metaValue}>{remainingTimeLabel}</Text></Text>
           <Text style={styles.metaLine}><Text style={styles.metaLabel}>Priority: </Text><Text style={styles.metaValue}>{task.priority}</Text></Text>
           <Text style={styles.metaLine}><Text style={styles.metaLabel}>Members: </Text><Text style={styles.metaValue}>{formatMembersLabel(task.members)}</Text></Text>
         </View>
 
-        <Text style={styles.description}>{task.description || '-'}</Text>
+        <Text style={styles.descriptionLine}>
+          <Text style={styles.metaLabel}>Description: </Text>
+          <Text style={styles.description}>{task.description || '-'}</Text>
+        </Text>
 
         <View style={styles.colorRow}>
           <View style={[styles.colorSwatch, { backgroundColor: deadlineColor.color }]} />
@@ -248,10 +254,15 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontWeight: '700',
   },
-  description: {
+  descriptionLine: {
     color: '#ffffff',
     marginTop: 8,
     marginBottom: 8,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
+  description: {
+    color: '#ffffff',
     fontWeight: '700',
   },
   colorRow: {

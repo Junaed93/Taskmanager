@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
@@ -97,6 +97,51 @@ export function useTaskManager() {
     };
 
     syncNotifications();
+  }, [isReady, tasks]);
+
+  // web alert 
+  const alertedRef = useRef(new Set());
+  const webIntervalRef = useRef(null);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    if (!isReady) return;
+
+    if (webIntervalRef.current) {
+      clearInterval(webIntervalRef.current);
+      webIntervalRef.current = null;
+    }
+
+    alertedRef.current = new Set();
+
+    webIntervalRef.current = setInterval(() => {
+      const now = Date.now();
+      for (const task of tasks) {
+        if (!task || !task.deadline) continue;
+        if (task.status === STATUS.COMPLETED) continue;
+        const when = new Date(task.deadline).getTime();
+        if (Number.isNaN(when)) continue;
+        if (when <= now && !alertedRef.current.has(task.id)) {
+          try {
+            alert(`Task due: ${task.name}`);
+          } catch (e) {
+            try {
+              window.alert(`Task due: ${task.name}`);
+            } catch (e2) {
+              console.log('Web alert failed for task', task.id);
+            }
+          }
+          alertedRef.current.add(task.id);
+        }
+      }
+    }, 1000);
+
+    return () => {
+      if (webIntervalRef.current) {
+        clearInterval(webIntervalRef.current);
+        webIntervalRef.current = null;
+      }
+    };
   }, [isReady, tasks]);
 
   const taskGroups = useMemo(

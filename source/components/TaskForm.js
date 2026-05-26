@@ -261,6 +261,7 @@ export function TaskForm({
       </View>
       <TextInput
         style={[styles.input, styles.multilineInput]}
+        accessibilityLabel="Description"
         placeholder="Description"
         placeholderTextColor="#6b7280"
         value={description}
@@ -422,16 +423,26 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   addMemberBtn: {
-    backgroundColor: '#22c55e',
+    backgroundColor: '#38bdf8',
     borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    minHeight: 44,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    minHeight: 40,
+    minWidth: 72,
     justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#0ea5e9',
+    shadowColor: '#000000',
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
   addMemberBtnText: {
-    color: '#052e16',
-    fontWeight: '800',
+    color: '#082f49',
+    fontWeight: '900',
+    fontSize: 13,
   },
   memberChipWrap: {
     flexDirection: 'row',

@@ -151,6 +151,30 @@ export function getCalculatedRequiredTimeLabel(task) {
   return '-';
 }
 
+export function getRemainingTimeLabel(task, nowMs = Date.now()) {
+  if (!task) {
+    return '-';
+  }
+
+  if (task.status === STATUS.COMPLETED) {
+    return 'Completed';
+  }
+
+  const deadlineMs = new Date(task.deadline).getTime();
+
+  if (!Number.isFinite(deadlineMs)) {
+    return '-';
+  }
+
+  const remainingMs = deadlineMs - nowMs;
+
+  if (remainingMs <= 0) {
+    return 'Overdue';
+  }
+
+  return formatDurationLabel(remainingMs);
+}
+
 function normalizeCommentEntry(entry) {
   if (!entry) {
     return null;
